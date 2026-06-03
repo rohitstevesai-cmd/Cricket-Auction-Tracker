@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
 import { PlayerCard } from "@/components/PlayerCard";
 import { TeamCard } from "@/components/TeamCard";
@@ -212,6 +213,7 @@ export default function PublicDashboard() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

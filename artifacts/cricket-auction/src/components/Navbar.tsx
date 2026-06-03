@@ -21,7 +21,7 @@ export function Navbar() {
       <div className="w-full px-4 sm:px-6 flex h-14 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95">
           <Shield className="h-8 w-8 text-primary" />
-          <span className="font-heading text-3xl tracking-wide text-white uppercase mt-1">Auction<span className="text-primary">X</span></span>
+          <span className="font-heading text-2xl sm:text-3xl tracking-wide text-white uppercase mt-1">Auction<span className="text-primary">X</span><span className="text-white/40 text-base sm:text-lg ml-1.5">SPL</span></span>
         </Link>
         <div className="flex items-center gap-6">
           <button

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft } from "lucide-react";
@@ -302,6 +303,7 @@ export default function ManagementDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Footer />
     </div>
   );
 }

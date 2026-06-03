@@ -1,6 +1,7 @@
 import { useData } from "@/context/DataContext";
 import { useParams, Link } from "wouter";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import { PlayerCard } from "@/components/PlayerCard";
 import { ArrowLeft, MapPin, Users } from "lucide-react";
 import { motion } from "framer-motion";
@@ -105,6 +106,7 @@ export default function TeamDetail() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
