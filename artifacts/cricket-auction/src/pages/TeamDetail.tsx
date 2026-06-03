@@ -32,7 +32,7 @@ export default function TeamDetail() {
 
       <main className="flex-1 pb-12">
         {/* Header Hero */}
-        <div className="relative pt-12 pb-24 overflow-hidden border-b border-white/10">
+        <div className="relative pt-8 sm:pt-12 pb-16 sm:pb-24 overflow-hidden border-b border-white/10">
           <div 
             className="absolute inset-0 opacity-10"
             style={{ 
@@ -44,7 +44,7 @@ export default function TeamDetail() {
             style={{ backgroundColor: team.color }}
           />
           
-          <div className="container relative z-10">
+          <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10">
             <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8 text-sm font-semibold uppercase tracking-wider">
               <ArrowLeft className="w-4 h-4" /> Back to Teams
             </Link>
@@ -85,7 +85,7 @@ export default function TeamDetail() {
         </div>
 
         {/* Squad Grid */}
-        <div className="container mt-12">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-10 sm:mt-12">
           <div className="flex items-center justify-between mb-8">
             <h2 className="font-heading text-3xl text-white tracking-wider uppercase">Current Squad</h2>
           </div>

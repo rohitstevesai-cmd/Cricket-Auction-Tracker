@@ -96,7 +96,7 @@ export default function ManagementDashboard() {
         </div>
       </nav>
 
-      <main className="flex-1 container py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-white/5 border border-white/10 h-14 p-1 mb-8 w-full max-w-xl mx-auto flex">
             <TabsTrigger value="players" className="font-heading text-lg tracking-wide flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Players Master</TabsTrigger>
@@ -120,19 +120,41 @@ export default function ManagementDashboard() {
                 <table className="w-full text-left text-sm text-white/90">
                   <thead className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                     <tr>
-                      <th className="px-6 py-4">Name</th>
-                      <th className="px-6 py-4">Details</th>
-                      <th className="px-6 py-4">Type / Role</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                      <th className="px-4 py-3">Player</th>
+                      <th className="px-4 py-3 hidden sm:table-cell">Details</th>
+                      <th className="px-4 py-3">Type / Role</th>
+                      <th className="px-4 py-3 hidden md:table-cell">Status</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {players.map(player => (
                       <tr key={player.id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold">{player.name}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{player.age} yrs • {player.village}</td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {/* Avatar with photo */}
+                            <div
+                              className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center font-heading text-sm text-white"
+                              style={{
+                                background: player.photo ? "transparent" : "linear-gradient(135deg,#1e293b,#0f172a)",
+                                border: "2px solid rgba(255,255,255,0.1)",
+                                minWidth: 36,
+                              }}
+                            >
+                              {player.photo ? (
+                                <img src={player.photo} alt={player.name} className="w-full h-full object-cover" />
+                              ) : (
+                                player.name.split(" ").map(n=>n[0]).join("").substring(0,2).toUpperCase()
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm truncate">{player.name}</p>
+                              <p className="text-[11px] text-muted-foreground sm:hidden">{player.age} yrs · {player.village}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-sm hidden sm:table-cell">{player.age} yrs · {player.village}</td>
+                        <td className="px-4 py-3">
                           <div className="flex flex-col gap-1 items-start">
                             <span className="text-xs border border-white/20 bg-white/5 px-2 py-0.5 rounded">{player.playerType}</span>
                             {player.additionalTag !== "Normal Player" && (
@@ -140,22 +162,22 @@ export default function ManagementDashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3 hidden md:table-cell">
                           {player.status === "available" ? (
                             <span className="text-emerald-400 font-semibold text-xs uppercase tracking-wider">Available</span>
                           ) : (
-                            <span className="text-red-400 font-semibold text-xs uppercase tracking-wider flex items-center gap-1">
-                              Sold <span className="text-white/50 lowercase">({teams.find(t=>t.id === player.teamId)?.name || "Unknown"})</span>
+                            <span className="text-red-400 font-semibold text-xs uppercase tracking-wider">
+                              Sold <span className="text-white/40 lowercase normal-case">({teams.find(t=>t.id === player.teamId)?.name || "?"})</span>
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => openEditPlayer(player)}>
-                              <Edit2 className="w-4 h-4" />
+                              <Edit2 className="w-3.5 h-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400/70 hover:text-red-400 hover:bg-red-400/10" onClick={() => setPlayerToDelete(player.id)}>
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         </td>
