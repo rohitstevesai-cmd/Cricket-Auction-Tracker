@@ -1,0 +1,164 @@
+Build a full-stack Cricket Player Auction Tracker web app (like IPL auction) with two separate dashboards. Use React + Tailwind CSS for the frontend, with localStorage or a simple JSON-based state for persistence (no backend required for MVP).
+
+---
+
+## 🎨 DESIGN DIRECTION
+- Theme: Dark luxury sports aesthetic — deep navy/black backgrounds, gold/amber accents, sharp cricket-inspired visuals
+- Font: "Bebas Neue" for headings, "DM Sans" for body text (Google Fonts)
+- Vibe: Premium, cinematic — like an official IPL broadcast dashboard
+- Full responsive design (mobile + desktop)
+
+---
+
+## 🏠 PAGE 1: PUBLIC DASHBOARD (Read-Only)
+
+### Navbar
+- App logo/name (e.g. "AuctionX" or "Cricket Auction Hub")
+- Two tabs: "Players" | "Teams"
+- A hidden trigger: clicking "Privacy Policy / Terms" link in navbar footer **10 times** opens the Management Dashboard (no password required, just 10 rapid clicks — show a subtle click counter toast like "🔒 3/10")
+
+---
+
+### TAB 1: Players List
+- A full searchable, filterable, sortable list of all players
+- Each player card shows:
+  - Photo (avatar/uploaded image)
+  - Name, Age, Village/City
+  - Player Type badge: Batsman | Bowler | All-Rounder | Wicket-Keeper
+  - Additional Tag badge: Normal Player | Captain | Vice Captain
+  - Status tag: ✅ Available (green) | 🔴 Sold (red with team name)
+  - If sold: show team logo/color and team name on the card
+
+- Filters (sidebar or top bar):
+  - By Player Type (Batsman, Bowler, All-Rounder, WK)
+  - By Status (Available / Sold / All)
+  - By Additional Tag (Captain, Vice Captain, Normal)
+  - Sort by: Name A-Z, Age, Recently Added
+
+- Stats bar at top:
+  - Total Players | Available | Sold | Teams
+
+---
+
+### TAB 2: Teams List
+- Grid of team cards showing:
+  - Team logo/image
+  - Team name
+  - Team location
+  - Number of players in the team
+  - Click on a team → opens team detail page showing all players in that team with their cards
+
+---
+
+## 🔐 PAGE 2: MANAGEMENT DASHBOARD (Owner Only)
+
+- Accessible by clicking the "Privacy Policy" / "Terms & Conditions" link in the footer 10 times
+- Show a subtle floating toast counter as user clicks (e.g. "🔒 7/10 — Keep going...")
+- On 10th click: smooth modal/slide-in that reveals the Management Dashboard (no password, just the secret click mechanic)
+
+### Management Dashboard has 3 sections (tabs):
+
+---
+
+### Section A: Manage Players
+- Full list of all players with Edit / Delete buttons
+- "Add New Player" button opens a form/modal with:
+  - Name (text)
+  - Age (number)
+  - Village / City (text)
+  - Player Type: dropdown → Batsman | Bowler | All-Rounder | Wicket-Keeper
+  - Additional Tag: dropdown → Normal Player | Captain | Vice Captain
+  - Photo: image upload (stored as base64 or URL)
+  - Status: Available / Sold
+  - Assign to Team: dropdown (optional, pick from existing teams)
+
+- If a player is assigned to a team → their status auto-changes to "Sold" and they get the team tag
+- Edit player: same form pre-filled
+- Delete player: confirmation prompt
+
+---
+
+### Section B: Manage Teams
+- List of all teams with Edit / Delete buttons
+- "Add New Team" button opens a form/modal with:
+  - Team Name
+  - Team Logo / Image (upload)
+  - Team Location / City
+  - Team Color (color picker — used as accent on team card)
+  - Description (optional)
+
+- Delete team: ask if players should be unassigned (set back to Available) or also deleted
+
+---
+
+### Section C: Player ↔ Team Assignment
+- A two-panel interface:
+  - Left: list of Available players
+  - Right: list of Teams
+  - Drag a player to a team OR use "Assign" button
+  - Each player row has: "Assign to Team" dropdown + Confirm button
+  - Each team row shows its current players with "Remove from Team" ✕ button
+  - Removing from team → player goes back to Available status
+
+---
+
+## 💾 DATA & STATE
+- Use React Context + localStorage for all state management
+- Data shape:
+
+```json
+{
+  "players": [
+    {
+      "id": "uuid",
+      "name": "Rohit Sharma",
+      "age": 36,
+      "village": "Mumbai",
+      "playerType": "Batsman",
+      "additionalTag": "Captain",
+      "photo": "base64 or url",
+      "status": "sold",
+      "teamId": "team-001",
+      "createdAt": "timestamp"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-001",
+      "name": "Mumbai Warriors",
+      "logo": "base64 or url",
+      "location": "Mumbai",
+      "color": "#1a73e8",
+      "description": ""
+    }
+  ]
+}
+```
+
+- Pre-populate with 10 sample players and 3 sample teams so the app looks alive on first load
+
+---
+
+## ✨ UI/UX EXTRA DETAILS
+- Smooth page transitions and card hover effects
+- Loading skeleton on first render
+- Toast notifications for all actions (Player added ✅, Team deleted ❌, etc.)
+- Empty states with cricket-themed illustrations or icons (e.g. 🏏 "No players yet. Add your first player!")
+- Mobile-first responsive layout
+- Clicking a team name anywhere (player card, team tab) always navigates to that team's player list
+- Sold players in the Players tab have a subtle red/dark overlay with team badge
+- The Management Dashboard has a clearly different visual style (slightly lighter background, edit mode indicators) so the owner knows they're in admin mode
+
+---
+
+## TECH STACK
+- React (functional components + hooks)
+- Tailwind CSS
+- React Router (for tab/page navigation)
+- UUID for IDs
+- Google Fonts: Bebas Neue + DM Sans
+- No backend needed — all localStorage
+
+---
+
+Start by building the full app in a single Replit project. Create separate component files for: PlayerCard, TeamCard, PlayerForm, TeamForm, AssignPanel, PublicDashboard, ManagementDashboard, Navbar, and a DataContext provider.

@@ -1,0 +1,162 @@
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Team, useData } from "@/context/DataContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
+const teamSchema = z.object({
+  name: z.string().min(2, "Team name is required"),
+  location: z.string().min(2, "Location is required"),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/i, "Must be a valid hex color"),
+  description: z.string(),
+  logo: z.string(),
+});
+
+type TeamFormValues = z.infer<typeof teamSchema>;
+
+interface TeamFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  teamToEdit?: Team | null;
+}
+
+export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
+  const { addTeam, editTeam } = useData();
+
+  const form = useForm<TeamFormValues>({
+    resolver: zodResolver(teamSchema),
+    defaultValues: {
+      name: "",
+      location: "",
+      color: "#1a73e8",
+      description: "",
+      logo: "",
+    },
+  });
+
+  useEffect(() => {
+    if (teamToEdit && open) {
+      form.reset({
+        name: teamToEdit.name,
+        location: teamToEdit.location,
+        color: teamToEdit.color,
+        description: teamToEdit.description,
+        logo: teamToEdit.logo,
+      });
+    } else if (!open) {
+      form.reset({
+        name: "",
+        location: "",
+        color: "#1a73e8",
+        description: "",
+        logo: "",
+      });
+    }
+  }, [teamToEdit, open, form]);
+
+  const onSubmit = (data: TeamFormValues) => {
+    if (teamToEdit) {
+      editTeam(teamToEdit.id, data);
+      toast.success("Team updated successfully");
+    } else {
+      addTeam(data);
+      toast.success("Team added successfully");
+    }
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] bg-slate-900 border-white/10 text-white">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-2xl tracking-wide uppercase text-primary">
+            {teamToEdit ? "Edit Team" : "Add New Team"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/80">Team Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Royal Challengers" className="bg-black/40 border-white/10" {...field} />
+                  </FormControl>
+                  <FormMessage className="text-red-400" />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/80">Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Bangalore" className="bg-black/40 border-white/10" {...field} />
+                    </FormControl>
+                    <FormMessage className="text-red-400" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/80">Theme Color</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input type="color" className="bg-black/40 border-white/10 p-1 w-12 cursor-pointer" {...field} />
+                      </FormControl>
+                      <Input type="text" className="bg-black/40 border-white/10 flex-1 font-mono text-sm uppercase" {...field} />
+                    </div>
+                    <FormMessage className="text-red-400" />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/80">Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Brief team bio or catchphrase..." 
+                      className="bg-black/40 border-white/10 resize-none" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-400" />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
+              <Button type="button" variant="outline" className="border-white/20 text-white" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {teamToEdit ? "Save Changes" : "Add Team"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

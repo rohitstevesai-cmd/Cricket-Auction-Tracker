@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Osc5thI6n4YMO7eR-e4P4"
+uri = "file://artifacts/cricket-auction/public/images/mumbai-warriors.png"
+type = "image"
+title = "Blue cricket team shield logo"
+
+[[generated]]
+id = "YlwdCgcGsYf5XZQQajsi0"
+uri = "file://artifacts/cricket-auction/public/images/chennai-kings.png"
+type = "image"
+title = "Orange cricket team shield logo"
+
+[[generated]]
+id = "Xv1Ba1b9Ly5_z8O7OV2uW"
+uri = "file://artifacts/cricket-auction/public/images/delhi-thunders.png"
+type = "image"
+title = "Green cricket team shield logo"
