@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Camera, X, Upload } from "lucide-react";
 
 const playerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  age: z.coerce.number().min(16, "Age must be at least 16").max(60, "Age must be less than 60"),
+  age: z.coerce.number().min(16, "Min age 16").max(60, "Max age 60"),
   village: z.string().min(2, "Village/City is required"),
   playerType: z.enum(["Batsman", "Bowler", "All-Rounder", "Wicket-Keeper"]),
   additionalTag: z.enum(["Normal Player", "Captain", "Vice Captain"]),
@@ -27,20 +28,28 @@ interface PlayerFormProps {
   playerToEdit?: Player | null;
 }
 
+function getInitials(name: string) {
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
+}
+
 export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps) {
   const { addPlayer, editPlayer, teams } = useData();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
 
   const form = useForm<PlayerFormValues>({
     resolver: zodResolver(playerSchema),
     defaultValues: {
       name: "",
-      age: 20,
+      age: 22,
       village: "",
       playerType: "Batsman",
       additionalTag: "Normal Player",
       teamId: null,
     },
   });
+
+  const watchedName = form.watch("name");
 
   useEffect(() => {
     if (playerToEdit && open) {
@@ -52,67 +61,136 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
         additionalTag: playerToEdit.additionalTag,
         teamId: playerToEdit.teamId,
       });
+      setPhotoPreview(playerToEdit.photo || "");
     } else if (!open) {
       form.reset({
         name: "",
-        age: 20,
+        age: 22,
         village: "",
         playerType: "Batsman",
         additionalTag: "Normal Player",
         teamId: null,
       });
+      setPhotoPreview("");
     }
   }, [playerToEdit, open, form]);
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Photo must be under 2MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      setPhotoPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    setPhotoPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const onSubmit = (data: PlayerFormValues) => {
     const status = data.teamId ? "sold" : "available";
-    
     if (playerToEdit) {
-      editPlayer(playerToEdit.id, { ...data, status });
-      toast.success("Player updated successfully");
+      editPlayer(playerToEdit.id, { ...data, status, photo: photoPreview });
+      toast.success("Player updated");
     } else {
-      addPlayer({ ...data, status, photo: "" });
-      toast.success("Player added successfully");
+      addPlayer({ ...data, status, photo: photoPreview });
+      toast.success("Player added");
     }
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-slate-900 border-white/10 text-white">
+      <DialogContent className="max-w-[95vw] sm:max-w-[500px] bg-slate-900 border-white/10 text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading text-2xl tracking-wide uppercase text-primary">
+          <DialogTitle className="font-heading text-xl sm:text-2xl tracking-wide uppercase text-primary">
             {playerToEdit ? "Edit Player" : "Add New Player"}
           </DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
+
+            {/* Photo Upload */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-shrink-0">
+                {photoPreview ? (
+                  <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-primary/60">
+                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center font-heading text-2xl text-white/60 border-2 border-dashed border-white/20 bg-black/30"
+                  >
+                    {watchedName ? getInitials(watchedName) : <Camera className="w-7 h-7 text-white/30" />}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-white/70 mb-2 font-medium">Player Photo</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {photoPreview ? "Change Photo" : "Upload Photo"}
+                </button>
+                <p className="text-[10px] text-white/40 mt-1.5 text-center">JPG/PNG, max 2MB</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  data-testid="input-photo-upload"
+                />
+              </div>
+            </div>
+
+            {/* Name */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/80">Full Name</FormLabel>
+                  <FormLabel className="text-white/80 text-sm">Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Virat Kohli" className="bg-black/40 border-white/10" {...field} />
+                    <Input placeholder="e.g. Virat Kohli" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
                   </FormControl>
-                  <FormMessage className="text-red-400" />
+                  <FormMessage className="text-red-400 text-xs" />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white/80">Age</FormLabel>
+                    <FormLabel className="text-white/80 text-sm">Age</FormLabel>
                     <FormControl>
-                      <Input type="number" className="bg-black/40 border-white/10" {...field} />
+                      <Input type="number" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
                     </FormControl>
-                    <FormMessage className="text-red-400" />
+                    <FormMessage className="text-red-400 text-xs" />
                   </FormItem>
                 )}
               />
@@ -121,27 +199,27 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
                 name="village"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white/80">Village/City</FormLabel>
+                    <FormLabel className="text-white/80 text-sm">Village/City</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Delhi" className="bg-black/40 border-white/10" {...field} />
+                      <Input placeholder="e.g. Delhi" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
                     </FormControl>
-                    <FormMessage className="text-red-400" />
+                    <FormMessage className="text-red-400 text-xs" />
                   </FormItem>
                 )}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="playerType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white/80">Player Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel className="text-white/80 text-sm">Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-black/40 border-white/10">
-                          <SelectValue placeholder="Select type" />
+                        <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -151,7 +229,7 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
                         <SelectItem value="Wicket-Keeper">Wicket-Keeper</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage className="text-red-400" />
+                    <FormMessage className="text-red-400 text-xs" />
                   </FormItem>
                 )}
               />
@@ -160,20 +238,20 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
                 name="additionalTag"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-white/80">Tag</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel className="text-white/80 text-sm">Role Tag</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="bg-black/40 border-white/10">
-                          <SelectValue placeholder="Select tag" />
+                        <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Normal Player">Normal Player</SelectItem>
+                        <SelectItem value="Normal Player">Normal</SelectItem>
                         <SelectItem value="Captain">Captain</SelectItem>
                         <SelectItem value="Vice Captain">Vice Captain</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage className="text-red-400" />
+                    <FormMessage className="text-red-400 text-xs" />
                   </FormItem>
                 )}
               />
@@ -184,30 +262,39 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
               name="teamId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/80">Assign to Team (Optional)</FormLabel>
-                  <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
+                  <FormLabel className="text-white/80 text-sm">Assign to Team (Optional)</FormLabel>
+                  <Select
+                    onValueChange={(val) => field.onChange(val === "none" ? null : val)}
+                    value={field.value || "none"}
+                  >
                     <FormControl>
-                      <SelectTrigger className="bg-black/40 border-white/10">
-                        <SelectValue placeholder="Select team" />
+                      <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="none">-- Available (No Team) --</SelectItem>
+                      <SelectItem value="none">Available (No Team)</SelectItem>
                       {teams.map((team) => (
                         <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage className="text-red-400" />
+                  <FormMessage className="text-red-400 text-xs" />
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
-              <Button type="button" variant="outline" className="border-white/20 text-white" onClick={() => onOpenChange(false)}>
+            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-white/20 text-white"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {playerToEdit ? "Save Changes" : "Add Player"}
               </Button>
             </div>
