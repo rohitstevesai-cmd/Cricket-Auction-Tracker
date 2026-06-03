@@ -4,9 +4,8 @@ import { Navbar } from "@/components/Navbar";
 import { useData } from "@/context/DataContext";
 import { PlayerCard } from "@/components/PlayerCard";
 import { TeamCard } from "@/components/TeamCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,6 +13,7 @@ export default function PublicDashboard() {
   const { players, teams } = useData();
   const [, setLocation] = useLocation();
 
+  const [activeTab, setActiveTab] = useState<"players" | "teams">("players");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -33,9 +33,7 @@ export default function PublicDashboard() {
     })
     .sort((a, b) => {
       if (sortBy === "Name A-Z") return a.name.localeCompare(b.name);
-      if (sortBy === "Name Z-A") return b.name.localeCompare(a.name);
-      if (sortBy === "Age (Low-High)") return a.age - b.age;
-      if (sortBy === "Age (High-Low)") return b.age - a.age;
+      if (sortBy === "Age") return a.age - b.age;
       if (sortBy === "Recently Added") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       return 0;
     });
@@ -44,55 +42,79 @@ export default function PublicDashboard() {
     <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col">
       <Navbar />
 
-      <main className="flex-1 container px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="players" className="w-full">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="font-heading text-4xl sm:text-5xl text-white tracking-wider uppercase">Live Auction</h1>
-              <p className="text-muted-foreground mt-1">Real-time player tracking and team formations</p>
-            </div>
-            <TabsList className="bg-white/5 border border-white/10 h-12 p-1">
-              <TabsTrigger value="players" className="font-heading text-lg tracking-wide px-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Players</TabsTrigger>
-              <TabsTrigger value="teams" className="font-heading text-lg tracking-wide px-8 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Teams</TabsTrigger>
-            </TabsList>
-          </div>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
 
-          <TabsContent value="players" className="mt-0 outline-none">
+        {/* Header + Tabs */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 sm:mb-8">
+          <div>
+            <h1 className="font-heading text-3xl sm:text-5xl text-white tracking-wider uppercase leading-none">Live Auction</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm mt-1">Real-time player tracking and team formations</p>
+          </div>
+          {/* Custom Tab Buttons */}
+          <div className="flex bg-white/5 border border-white/10 rounded-lg p-1 self-start sm:self-auto">
+            <button
+              onClick={() => setActiveTab("players")}
+              className={`font-heading text-sm sm:text-base tracking-wide px-5 sm:px-8 py-2 rounded-md transition-all ${
+                activeTab === "players"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-white"
+              }`}
+            >
+              Players
+            </button>
+            <button
+              onClick={() => setActiveTab("teams")}
+              className={`font-heading text-sm sm:text-base tracking-wide px-5 sm:px-8 py-2 rounded-md transition-all ${
+                activeTab === "teams"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-white"
+              }`}
+            >
+              Teams
+            </button>
+          </div>
+        </div>
+
+        {/* Players Tab */}
+        {activeTab === "players" && (
+          <div>
             {/* Stats Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center">
-                <span className="text-3xl font-heading text-white">{players.length}</span>
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Players</span>
+            <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-5 sm:mb-8">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center text-center">
+                <span className="text-xl sm:text-3xl font-heading text-white leading-none">{players.length}</span>
+                <span className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1 leading-tight">Total</span>
               </div>
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex flex-col items-center justify-center">
-                <span className="text-3xl font-heading text-emerald-400">{availableCount}</span>
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400/70">Available</span>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center text-center">
+                <span className="text-xl sm:text-3xl font-heading text-emerald-400 leading-none">{availableCount}</span>
+                <span className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-emerald-400/70 mt-1 leading-tight">Available</span>
               </div>
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col items-center justify-center">
-                <span className="text-3xl font-heading text-red-400">{soldCount}</span>
-                <span className="text-xs font-semibold uppercase tracking-wider text-red-400/70">Sold</span>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center text-center">
+                <span className="text-xl sm:text-3xl font-heading text-red-400 leading-none">{soldCount}</span>
+                <span className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-red-400/70 mt-1 leading-tight">Sold</span>
               </div>
-              <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex flex-col items-center justify-center">
-                <span className="text-3xl font-heading text-primary">{teams.length}</span>
-                <span className="text-xs font-semibold uppercase tracking-wider text-primary/70">Teams</span>
+              <div className="bg-primary/10 border border-primary/20 rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center text-center">
+                <span className="text-xl sm:text-3xl font-heading text-primary leading-none">{teams.length}</span>
+                <span className="text-[9px] sm:text-xs font-semibold uppercase tracking-wider text-primary/70 mt-1 leading-tight">Teams</span>
               </div>
             </div>
 
             {/* Filters */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-8 flex flex-col lg:flex-row gap-4">
-              <div className="relative flex-1">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 sm:p-4 mb-5 sm:mb-8 space-y-3">
+              {/* Search */}
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search players or villages..." 
-                  className="pl-9 bg-black/20 border-white/10 focus-visible:ring-primary h-10"
+                <Input
+                  placeholder="Search players..."
+                  className="pl-9 bg-black/20 border-white/10 focus-visible:ring-primary h-9 text-sm"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  data-testid="input-search-players"
                 />
               </div>
-              <div className="flex flex-wrap gap-2 lg:gap-4 items-center">
-                <SlidersHorizontal className="w-4 h-4 text-muted-foreground hidden sm:block" />
+              {/* Filter dropdowns — 2x2 on mobile, 4-in-row on md+ */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[140px] bg-black/20 border-white/10 h-10 text-xs uppercase tracking-wider font-semibold">
+                  <SelectTrigger className="bg-black/20 border-white/10 h-9 text-[11px] uppercase tracking-wider font-semibold w-full" data-testid="select-type-filter">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -105,7 +127,7 @@ export default function PublicDashboard() {
                 </Select>
 
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[120px] bg-black/20 border-white/10 h-10 text-xs uppercase tracking-wider font-semibold">
+                  <SelectTrigger className="bg-black/20 border-white/10 h-9 text-[11px] uppercase tracking-wider font-semibold w-full" data-testid="select-status-filter">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -116,7 +138,7 @@ export default function PublicDashboard() {
                 </Select>
 
                 <Select value={tagFilter} onValueChange={setTagFilter}>
-                  <SelectTrigger className="w-[140px] bg-black/20 border-white/10 h-10 text-xs uppercase tracking-wider font-semibold">
+                  <SelectTrigger className="bg-black/20 border-white/10 h-9 text-[11px] uppercase tracking-wider font-semibold w-full" data-testid="select-tag-filter">
                     <SelectValue placeholder="Tag" />
                   </SelectTrigger>
                   <SelectContent>
@@ -128,68 +150,67 @@ export default function PublicDashboard() {
                 </Select>
 
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[150px] bg-black/20 border-white/10 h-10 text-xs uppercase tracking-wider font-semibold">
+                  <SelectTrigger className="bg-black/20 border-white/10 h-9 text-[11px] uppercase tracking-wider font-semibold w-full" data-testid="select-sort">
                     <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Name A-Z">Name A-Z</SelectItem>
-                    <SelectItem value="Name Z-A">Name Z-A</SelectItem>
-                    <SelectItem value="Age (Low-High)">Age (Low-High)</SelectItem>
-                    <SelectItem value="Age (High-Low)">Age (High-Low)</SelectItem>
-                    <SelectItem value="Recently Added">Recently Added</SelectItem>
+                    <SelectItem value="Age">Age</SelectItem>
+                    <SelectItem value="Recently Added">Recent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Grid */}
+            {/* Player Grid */}
             {filteredPlayers.length === 0 ? (
-              <div className="text-center py-24 border border-dashed border-white/10 rounded-xl bg-white/5">
-                <span className="text-4xl mb-4 block">🏏</span>
-                <h3 className="font-heading text-2xl text-white tracking-wide uppercase">No players found</h3>
-                <p className="text-muted-foreground mt-2">Try adjusting your filters or search term.</p>
+              <div className="text-center py-16 border border-dashed border-white/10 rounded-xl bg-white/5">
+                <span className="text-3xl mb-3 block">🏏</span>
+                <h3 className="font-heading text-xl text-white tracking-wide uppercase">No players found</h3>
+                <p className="text-muted-foreground text-sm mt-1">Try adjusting your filters.</p>
               </div>
             ) : (
-              <motion.div 
+              <motion.div
                 layout
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
               >
                 <AnimatePresence mode="popLayout">
                   {filteredPlayers.map((player) => {
                     const team = player.teamId ? teams.find((t) => t.id === player.teamId) : null;
-                    return (
-                      <PlayerCard key={player.id} player={player} team={team} />
-                    );
+                    return <PlayerCard key={player.id} player={player} team={team} />;
                   })}
                 </AnimatePresence>
               </motion.div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="teams" className="mt-0 outline-none">
+        {/* Teams Tab */}
+        {activeTab === "teams" && (
+          <div>
             {teams.length === 0 ? (
-              <div className="text-center py-24 border border-dashed border-white/10 rounded-xl bg-white/5">
-                <span className="text-4xl mb-4 block">🛡️</span>
-                <h3 className="font-heading text-2xl text-white tracking-wide uppercase">No teams found</h3>
-                <p className="text-muted-foreground mt-2">Teams will appear here once added.</p>
+              <div className="text-center py-16 border border-dashed border-white/10 rounded-xl bg-white/5">
+                <span className="text-3xl mb-3 block">🛡️</span>
+                <h3 className="font-heading text-xl text-white tracking-wide uppercase">No teams yet</h3>
+                <p className="text-muted-foreground text-sm mt-1">Teams will appear here once added.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {teams.map((team) => {
                   const teamPlayersCount = players.filter((p) => p.teamId === team.id).length;
                   return (
-                    <TeamCard 
-                      key={team.id} 
-                      team={team} 
-                      playerCount={teamPlayersCount} 
+                    <TeamCard
+                      key={team.id}
+                      team={team}
+                      playerCount={teamPlayersCount}
                       onClick={() => setLocation(`/team/${team.id}`)}
                     />
                   );
                 })}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </main>
     </div>
   );

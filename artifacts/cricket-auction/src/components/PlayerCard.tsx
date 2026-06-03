@@ -47,7 +47,7 @@ export function PlayerCard({ player, team }: PlayerCardProps) {
 
   return (
     <motion.div
-      whileHover={{ y: -4, scale: 1.02 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <Card
@@ -58,54 +58,85 @@ export function PlayerCard({ player, team }: PlayerCardProps) {
         style={isSold ? { borderColor: team.color } : {}}
       >
         {isSold && (
-          <div 
+          <div
             className="absolute top-0 left-0 w-full h-1"
             style={{ backgroundColor: team.color }}
           />
         )}
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div 
-                className="w-16 h-16 rounded-full flex items-center justify-center font-heading text-2xl text-white shadow-inner"
-                style={{
-                  background: isSold ? `linear-gradient(135deg, ${team.color}40, ${team.color}10)` : "linear-gradient(135deg, #1e293b, #0f172a)",
-                  border: `2px solid ${isSold ? team.color : '#334155'}`
-                }}
-              >
-                {getInitials(player.name)}
-              </div>
-              <div>
-                <h3 className="font-heading text-2xl tracking-wide text-white uppercase">{player.name}</h3>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span>{player.age} yrs</span>
-                  <span className="w-1 h-1 rounded-full bg-white/20" />
-                  <span>{player.village}</span>
-                </p>
-              </div>
+        <CardContent className="p-3 sm:p-4">
+          {/* Top row: avatar + name + badges */}
+          <div className="flex items-start gap-3">
+            {/* Avatar */}
+            <div
+              className="w-11 h-11 sm:w-13 sm:h-13 rounded-full flex-shrink-0 flex items-center justify-center font-heading text-base sm:text-lg text-white"
+              style={{
+                background: isSold
+                  ? `linear-gradient(135deg, ${team.color}40, ${team.color}10)`
+                  : "linear-gradient(135deg, #1e293b, #0f172a)",
+                border: `2px solid ${isSold ? team.color : "#334155"}`,
+                width: "44px",
+                height: "44px",
+                minWidth: "44px",
+              }}
+            >
+              {getInitials(player.name)}
             </div>
-            <div className="flex flex-col gap-2 items-end">
-              <Badge variant="outline" className={cn("whitespace-nowrap uppercase tracking-wider text-[10px]", getTypeColor(player.playerType))}>
-                {player.playerType}
+
+            {/* Name + meta */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-heading text-base sm:text-xl tracking-wide text-white uppercase leading-tight truncate">
+                {player.name}
+              </h3>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <span>{player.age} yrs</span>
+                <span className="w-1 h-1 rounded-full bg-white/20 flex-shrink-0" />
+                <span className="truncate">{player.village}</span>
+              </p>
+            </div>
+
+            {/* Badges — stacked, shrink to fit */}
+            <div className="flex flex-col gap-1 items-end flex-shrink-0 ml-1">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "uppercase tracking-wide text-[9px] px-1.5 py-0 h-4 leading-none",
+                  getTypeColor(player.playerType)
+                )}
+              >
+                {player.playerType === "Wicket-Keeper" ? "WK" : player.playerType === "All-Rounder" ? "All-R" : player.playerType}
               </Badge>
               {player.additionalTag !== "Normal Player" && (
-                <Badge variant="outline" className={cn("whitespace-nowrap uppercase tracking-wider text-[10px]", getTagColor(player.additionalTag))}>
-                  {player.additionalTag}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "uppercase tracking-wide text-[9px] px-1.5 py-0 h-4 leading-none",
+                    getTagColor(player.additionalTag)
+                  )}
+                >
+                  {player.additionalTag === "Vice Captain" ? "V.Capt" : player.additionalTag}
                 </Badge>
               )}
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+          {/* Bottom row: status */}
+          <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center">
             {isSold ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-red-400">Sold</span>
-                <span className="text-sm text-white/80">to</span>
-                <span className="text-sm font-bold" style={{ color: team.color }}>{team.name}</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">
+                  Sold
+                </span>
+                <span className="text-xs text-white/60">to</span>
+                <span
+                  className="text-xs font-bold truncate"
+                  style={{ color: team.color }}
+                >
+                  {team.name}
+                </span>
               </div>
             ) : (
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                 Available
               </span>
             )}
