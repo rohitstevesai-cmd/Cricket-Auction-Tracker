@@ -39,7 +39,7 @@ export default function PublicDashboard() {
     });
 
   return (
-    <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col">
+    <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">

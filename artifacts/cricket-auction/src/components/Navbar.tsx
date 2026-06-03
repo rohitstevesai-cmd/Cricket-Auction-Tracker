@@ -18,7 +18,7 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="w-full px-4 sm:px-6 flex h-14 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95">
           <Shield className="h-8 w-8 text-primary" />
           <span className="font-heading text-3xl tracking-wide text-white uppercase mt-1">Auction<span className="text-primary">X</span></span>

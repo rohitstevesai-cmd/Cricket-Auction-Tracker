@@ -27,7 +27,7 @@ export default function TeamDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col">
+    <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col overflow-x-hidden">
       <Navbar />
 
       <main className="flex-1 pb-12">

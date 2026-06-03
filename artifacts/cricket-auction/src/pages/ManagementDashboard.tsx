@@ -77,41 +77,50 @@ export default function ManagementDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111827] text-foreground flex flex-col">
+    <div className="min-h-screen bg-[#111827] text-foreground flex flex-col overflow-x-hidden">
       {/* Admin Navbar */}
       <nav className="sticky top-0 z-50 w-full border-b border-primary/20 bg-[#0f172a] shadow-lg shadow-black/50">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-muted-foreground hover:text-white transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+        <div className="w-full px-4 sm:px-6 flex h-14 items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Link href="/" className="text-muted-foreground hover:text-white transition-colors flex-shrink-0">
+              <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div className="flex items-center gap-2">
-              <Settings className="h-6 w-6 text-primary" />
-              <span className="font-heading text-2xl tracking-wide text-white uppercase mt-1">Management <span className="text-primary">Console</span></span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Settings className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="font-heading text-sm sm:text-xl tracking-wide text-white uppercase">
+                <span className="sm:hidden">MGMT <span className="text-primary">CON.</span></span>
+                <span className="hidden sm:inline">Management <span className="text-primary">Console</span></span>
+              </span>
             </div>
           </div>
-          <Badge variant="outline" className="bg-primary/20 text-primary border-primary font-bold uppercase tracking-wider">
-            Admin Mode Active
+          <Badge variant="outline" className="bg-primary/20 text-primary border-primary font-bold uppercase tracking-wider text-[9px] sm:text-xs px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+            Admin Active
           </Badge>
         </div>
       </nav>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <main className="flex-1 w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-5xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white/5 border border-white/10 h-14 p-1 mb-8 w-full max-w-xl mx-auto flex">
-            <TabsTrigger value="players" className="font-heading text-lg tracking-wide flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Players Master</TabsTrigger>
-            <TabsTrigger value="teams" className="font-heading text-lg tracking-wide flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Franchises</TabsTrigger>
-            <TabsTrigger value="assignments" className="font-heading text-lg tracking-wide flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Auction Room</TabsTrigger>
+          <TabsList className="bg-white/5 border border-white/10 h-10 p-0.5 mb-5 w-full flex">
+            <TabsTrigger value="players" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <span className="sm:hidden">Players</span>
+              <span className="hidden sm:inline">Players Master</span>
+            </TabsTrigger>
+            <TabsTrigger value="teams" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Franchises</TabsTrigger>
+            <TabsTrigger value="assignments" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <span className="sm:hidden">Auction</span>
+              <span className="hidden sm:inline">Auction Room</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="players" className="mt-0">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-2xl font-heading uppercase tracking-wide text-white">Player Database</h2>
-                <p className="text-muted-foreground text-sm">Manage all registered players in the system</p>
+                <h2 className="text-lg sm:text-2xl font-heading uppercase tracking-wide text-white leading-tight">Player Database</h2>
+                <p className="text-muted-foreground text-xs mt-0.5 hidden sm:block">Manage all registered players in the system</p>
               </div>
-              <Button onClick={openAddPlayer} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-wide">
-                <Plus className="w-4 h-4 mr-2" /> Add Player
+              <Button onClick={openAddPlayer} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-wide text-xs h-8 px-3">
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Player
               </Button>
             </div>
 
@@ -120,11 +129,11 @@ export default function ManagementDashboard() {
                 <table className="w-full text-left text-sm text-white/90">
                   <thead className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                     <tr>
-                      <th className="px-4 py-3">Player</th>
-                      <th className="px-4 py-3 hidden sm:table-cell">Details</th>
-                      <th className="px-4 py-3">Type / Role</th>
-                      <th className="px-4 py-3 hidden md:table-cell">Status</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="px-3 py-3">Player</th>
+                      <th className="px-3 py-3 hidden md:table-cell">Details</th>
+                      <th className="px-3 py-3 hidden sm:table-cell">Type / Role</th>
+                      <th className="px-3 py-3 hidden lg:table-cell">Status</th>
+                      <th className="px-3 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -153,8 +162,8 @@ export default function ManagementDashboard() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground text-sm hidden sm:table-cell">{player.age} yrs · {player.village}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-muted-foreground text-sm hidden md:table-cell">{player.age} yrs · {player.village}</td>
+                        <td className="px-3 py-3 hidden sm:table-cell">
                           <div className="flex flex-col gap-1 items-start">
                             <span className="text-xs border border-white/20 bg-white/5 px-2 py-0.5 rounded">{player.playerType}</span>
                             {player.additionalTag !== "Normal Player" && (
@@ -162,7 +171,7 @@ export default function ManagementDashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
+                        <td className="px-3 py-3 hidden lg:table-cell">
                           {player.status === "available" ? (
                             <span className="text-emerald-400 font-semibold text-xs uppercase tracking-wider">Available</span>
                           ) : (
@@ -171,13 +180,13 @@ export default function ManagementDashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => openEditPlayer(player)}>
-                              <Edit2 className="w-3.5 h-3.5" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-white/70 hover:text-white" onClick={() => openEditPlayer(player)}>
+                              <Edit2 className="w-3 h-3" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400/70 hover:text-red-400 hover:bg-red-400/10" onClick={() => setPlayerToDelete(player.id)}>
-                              <Trash2 className="w-3.5 h-3.5" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400/70 hover:text-red-400 hover:bg-red-400/10" onClick={() => setPlayerToDelete(player.id)}>
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </td>
@@ -195,17 +204,17 @@ export default function ManagementDashboard() {
           </TabsContent>
 
           <TabsContent value="teams" className="mt-0">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-2xl font-heading uppercase tracking-wide text-white">Franchises</h2>
-                <p className="text-muted-foreground text-sm">Manage participating teams</p>
+                <h2 className="text-lg sm:text-2xl font-heading uppercase tracking-wide text-white leading-tight">Franchises</h2>
+                <p className="text-muted-foreground text-xs mt-0.5 hidden sm:block">Manage participating teams</p>
               </div>
-              <Button onClick={openAddTeam} className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-wide">
-                <Plus className="w-4 h-4 mr-2" /> Add Team
+              <Button onClick={openAddTeam} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-wide text-xs h-8 px-3">
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Team
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {teams.map(team => (
                 <div key={team.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col relative group">
                   <div className="h-2 w-full absolute top-0 left-0" style={{ backgroundColor: team.color }} />
