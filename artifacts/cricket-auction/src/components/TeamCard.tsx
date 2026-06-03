@@ -1,5 +1,4 @@
 import { Team } from "@/context/DataContext";
-import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Users } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -12,54 +11,61 @@ interface TeamCardProps {
 export function TeamCard({ team, playerCount, onClick }: TeamCardProps) {
   return (
     <motion.div
-      whileHover={{ y: -4, scale: 1.02 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       onClick={onClick}
-      className={onClick ? "cursor-pointer" : ""}
+      className={`relative overflow-hidden rounded-xl bg-card border border-white/5 hover:border-white/15 transition-colors shadow-xl cursor-pointer group`}
     >
-      <Card className="overflow-hidden relative bg-card border-white/5 hover:border-white/10 transition-colors shadow-2xl h-full group">
-        <div 
-          className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500"
-          style={{ background: `linear-gradient(45deg, transparent, ${team.color})` }}
-        />
-        <div 
-          className="h-2 w-full"
-          style={{ backgroundColor: team.color }}
-        />
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div 
-              className="w-20 h-20 rounded-xl flex-shrink-0 flex items-center justify-center p-2 shadow-inner"
-              style={{ backgroundColor: `${team.color}15`, border: `1px solid ${team.color}30` }}
-            >
-              {team.logo ? (
-                <img src={team.logo} alt={team.name} className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full bg-white/5 rounded-lg flex items-center justify-center font-heading text-xl text-white/50">LOGO</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-heading text-3xl tracking-wide text-white uppercase truncate mb-1">
-                {team.name}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                {team.description || "No description provided."}
-              </p>
-              
-              <div className="flex items-center gap-4 text-sm text-white/60">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <span className="truncate">{team.location}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-primary" />
-                  <span>{playerCount} Players</span>
-                </div>
-              </div>
-            </div>
+      {/* Colored top bar */}
+      <div className="h-1 w-full" style={{ backgroundColor: team.color }} />
+
+      {/* Hover glow */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at top left, ${team.color}, transparent 70%)` }}
+      />
+
+      <div className="p-3 flex items-center gap-3 relative z-10">
+        {/* Logo */}
+        <div
+          className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center p-1.5"
+          style={{ backgroundColor: `${team.color}18`, border: `1px solid ${team.color}35` }}
+        >
+          {team.logo ? (
+            <img src={team.logo} alt={team.name} className="w-full h-full object-contain" />
+          ) : (
+            <span className="font-heading text-base text-white/40">
+              {team.name.substring(0, 2).toUpperCase()}
+            </span>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <h3
+            className="font-heading text-base sm:text-lg tracking-wide text-white uppercase leading-tight truncate"
+            style={{ textShadow: `0 0 20px ${team.color}30` }}
+          >
+            {team.name}
+          </h3>
+          {team.description && (
+            <p className="text-[11px] text-muted-foreground truncate mt-0.5">{team.description}</p>
+          )}
+          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-white/50">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" style={{ color: team.color }} />
+              {team.location}
+            </span>
+            <span className="flex items-center gap-1">
+              <Users className="w-3 h-3" style={{ color: team.color }} />
+              {playerCount} Players
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Arrow indicator */}
+        <div className="text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0 text-lg">›</div>
+      </div>
     </motion.div>
   );
 }
