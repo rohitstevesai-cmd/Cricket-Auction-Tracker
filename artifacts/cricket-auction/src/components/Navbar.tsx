@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { toast } from "sonner";
 import { Shield } from "lucide-react";
 
 export function Navbar() {
@@ -12,11 +11,8 @@ export function Navbar() {
     setClickCount(newCount);
 
     if (newCount === 10) {
-      toast.success("Admin mode unlocked!");
       setLocation("/admin");
-      setClickCount(0); // Reset for later
-    } else if (newCount > 0 && newCount < 10) {
-      toast(`🔒 ${newCount}/10 — Keep clicking...`, { duration: 1500 });
+      setClickCount(0);
     }
   };
 

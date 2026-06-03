@@ -44,7 +44,7 @@ export default function PublicDashboard() {
     <div className="min-h-screen bg-[#0a0f1c] text-foreground flex flex-col">
       <Navbar />
 
-      <main className="flex-1 container py-8">
+      <main className="flex-1 container px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="players" className="w-full">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div>
