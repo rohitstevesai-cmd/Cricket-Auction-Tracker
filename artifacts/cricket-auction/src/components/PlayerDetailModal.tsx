@@ -1,5 +1,5 @@
 import { Player, Team } from "@/context/DataContext";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Calendar, MapPin, Star, Users } from "lucide-react";
 
 interface PlayerDetailModalProps {
@@ -40,6 +40,7 @@ export function PlayerDetailModal({ player, team, open, onClose }: PlayerDetailM
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[95vw] sm:max-w-2xl bg-[#0d1425] border-white/10 text-white p-0 overflow-hidden">
+        <DialogTitle className="sr-only">{player.name} — Player Profile</DialogTitle>
         {/* Header bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-black/40">
           <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
