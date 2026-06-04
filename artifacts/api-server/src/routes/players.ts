@@ -24,8 +24,9 @@ router.post("/players", async (req, res) => {
       playerType: body.playerType,
       additionalTag: body.additionalTag ?? "Normal Player",
       photo: body.photo ?? "",
-      status: body.status ?? "available",
-      teamId: body.teamId ?? null,
+      // Always start as available — team assignment must go through /assign
+      status: "available" as const,
+      teamId: null,
       points: body.points ?? 10,
     };
     const [inserted] = await db.insert(playersTable).values(player).returning();
@@ -38,8 +39,46 @@ router.post("/players", async (req, res) => {
 router.put("/players/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { id: _id, createdAt: _c, ...updates } = req.body;
-    const [updated] = await db.update(playersTable).set(updates).where(eq(playersTable.id, id)).returning();
+    // Strip teamId and status — these MUST go through /assign and /unassign
+    const { id: _id, createdAt: _c, teamId: _tid, status: _st, ...safeUpdates } = req.body;
+
+    // Fetch current player to check if points are changing while assigned
+    const [current] = await db.select().from(playersTable).where(eq(playersTable.id, id));
+    if (!current) {
+      res.status(404).json({ error: "Player not found" });
+      return;
+    }
+
+    // If points value is changing AND player is assigned to a team,
+    // recalculate the team's usedPoints with the diff
+    if (
+      safeUpdates.points !== undefined &&
+      safeUpdates.points !== current.points &&
+      current.teamId
+    ) {
+      const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, current.teamId));
+      if (team) {
+        const diff = safeUpdates.points - current.points;
+        const newUsed = Math.max(0, team.usedPoints + diff);
+        // Check the team can afford the extra points (if increasing)
+        if (diff > 0 && team.usedPoints + diff > team.totalPoints) {
+          res.status(400).json({
+            error: `Cannot increase player points: team only has ${team.totalPoints - team.usedPoints} pts remaining.`,
+          });
+          return;
+        }
+        await db
+          .update(teamsTable)
+          .set({ usedPoints: newUsed })
+          .where(eq(teamsTable.id, current.teamId));
+      }
+    }
+
+    const [updated] = await db
+      .update(playersTable)
+      .set(safeUpdates)
+      .where(eq(playersTable.id, id))
+      .returning();
     if (!updated) {
       res.status(404).json({ error: "Player not found" });
       return;
@@ -79,9 +118,18 @@ router.post("/players/:id/assign", async (req, res) => {
       res.status(404).json({ error: "Player or team not found" });
       return;
     }
+    // Guard: player already belongs to a team
+    if (player.teamId || player.status === "sold") {
+      res.status(400).json({
+        error: `${player.name} is already in a team. Remove them from their current team first.`,
+      });
+      return;
+    }
     const available = team.totalPoints - team.usedPoints;
     if (available < player.points) {
-      res.status(400).json({ error: `Not enough points. Need ${player.points}, team has ${available} available.` });
+      res.status(400).json({
+        error: `Not enough points. ${player.name} costs ${player.points} pts but ${team.name} only has ${available} pts remaining.`,
+      });
       return;
     }
     await db.update(playersTable).set({ status: "sold", teamId }).where(eq(playersTable.id, id));
