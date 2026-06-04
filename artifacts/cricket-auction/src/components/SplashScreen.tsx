@@ -86,7 +86,7 @@ export default function SplashScreen({ onDone }: SplashScreenProps) {
               marginTop: "2px",
             }}
           >
-            Saurashtra Premier League
+            Singhana Premier League
           </div>
         </div>
 
