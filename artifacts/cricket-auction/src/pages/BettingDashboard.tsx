@@ -91,16 +91,16 @@ export default function BettingDashboard() {
       <main className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 py-6">
 
         {/* Balance Card */}
-        <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-400/5 border border-yellow-400/20 rounded-2xl p-5 mb-6 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-400/5 border border-yellow-400/20 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-yellow-400/70 text-xs uppercase tracking-widest font-semibold">My Balance</p>
             <p className="text-4xl font-heading text-yellow-400 mt-1">₹{(user?.balance ?? 0).toLocaleString()}</p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={() => setAddMoneyOpen(true)} className="bg-yellow-400 text-black font-bold text-xs hover:bg-yellow-300">
+            <Button size="sm" onClick={() => setAddMoneyOpen(true)} className="flex-1 sm:flex-none bg-yellow-400 text-black font-bold text-xs hover:bg-yellow-300">
               + Add Money
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)} className="border-yellow-400/30 text-yellow-400 text-xs hover:bg-yellow-400/10">
+            <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)} className="flex-1 sm:flex-none border-yellow-400/30 text-yellow-400 text-xs hover:bg-yellow-400/10">
               Withdraw
             </Button>
           </div>

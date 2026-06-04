@@ -71,7 +71,7 @@ export default function BettingAdmin() {
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
             { label: "Pending Requests", val: transactions.filter(t => t.status === "pending").length, color: "text-yellow-400" },
             { label: "Total Users", val: users.length, color: "text-blue-400" },

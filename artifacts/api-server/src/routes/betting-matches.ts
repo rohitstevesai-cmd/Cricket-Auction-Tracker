@@ -87,11 +87,13 @@ router.post("/betting/admin/matches/:id/winner", async (req, res) => {
   }
 });
 
-// Admin: delete match
+// Admin: delete match (cascade-deletes bets first)
 router.delete("/betting/admin/matches/:id", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
     const { id } = req.params;
+    // Delete all bets for this match first, then the match itself
+    await db.delete(betsTable).where(eq(betsTable.matchId, id));
     await db.delete(matchesTable).where(eq(matchesTable.id, id));
     res.json({ ok: true });
   } catch {
