@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Camera, X, Upload } from "lucide-react";
+import { Camera, X, Upload, Loader2 } from "lucide-react";
 
 const playerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -36,7 +36,8 @@ function getInitials(name: string) {
 export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps) {
   const { addPlayer, editPlayer, teams } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [photoUrl, setPhotoUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<PlayerFormValues>({
     resolver: zodResolver(playerSchema),
@@ -64,24 +65,34 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
         points: playerToEdit.points ?? 10,
         teamId: playerToEdit.teamId,
       });
-      setPhotoPreview(playerToEdit.photo || "");
+      setPhotoUrl(playerToEdit.photo || "");
     } else if (!open) {
       form.reset({ name: "", age: 22, village: "", playerType: "Batsman", additionalTag: "Normal Player", points: 10, teamId: null });
-      setPhotoPreview("");
+      setPhotoUrl("");
     }
   }, [playerToEdit, open, form]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2MB"); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5MB"); return; }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload?folder=players", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setPhotoUrl(url);
+    } catch {
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removePhoto = () => {
-    setPhotoPreview("");
+    setPhotoUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -89,10 +100,10 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
     const status = data.teamId ? "sold" : "available";
     try {
       if (playerToEdit) {
-        await editPlayer(playerToEdit.id, { ...data, status, photo: photoPreview });
+        await editPlayer(playerToEdit.id, { ...data, status, photo: photoUrl });
         toast.success("Player updated");
       } else {
-        await addPlayer({ ...data, status, photo: photoPreview });
+        await addPlayer({ ...data, status, photo: photoUrl });
         toast.success("Player added");
       }
       onOpenChange(false);
@@ -115,9 +126,9 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
             {/* Photo Upload */}
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
-                {photoPreview ? (
+                {photoUrl ? (
                   <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-primary/60">
-                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
                     <button type="button" onClick={removePhoto} className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                       <X className="w-3 h-3 text-white" />
                     </button>
@@ -130,11 +141,16 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
               </div>
               <div className="flex-1">
                 <p className="text-sm text-white/70 mb-2 font-medium">Player Photo</p>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center">
-                  <Upload className="w-3.5 h-3.5" />
-                  {photoPreview ? "Change Photo" : "Upload Photo"}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center disabled:opacity-50"
+                >
+                  {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {uploading ? "Uploading…" : photoUrl ? "Change Photo" : "Upload Photo"}
                 </button>
-                <p className="text-[10px] text-white/40 mt-1.5 text-center">JPG/PNG, max 2MB</p>
+                <p className="text-[10px] text-white/40 mt-1.5 text-center">JPG/PNG, max 5MB</p>
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
               </div>
             </div>
@@ -229,7 +245,7 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
 
             <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
               <Button type="button" variant="outline" size="sm" className="border-white/20 text-white" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">{playerToEdit ? "Save Changes" : "Add Player"}</Button>
+              <Button type="submit" size="sm" disabled={uploading} className="bg-primary text-primary-foreground hover:bg-primary/90">{playerToEdit ? "Save Changes" : "Add Player"}</Button>
             </div>
           </form>
         </Form>

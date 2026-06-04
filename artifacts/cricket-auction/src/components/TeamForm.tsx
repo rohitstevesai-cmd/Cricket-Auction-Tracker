@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Upload, X } from "lucide-react";
+import { Shield, Upload, X, Loader2 } from "lucide-react";
 
 const teamSchema = z.object({
   name: z.string().min(2, "Team name is required"),
@@ -30,7 +30,8 @@ interface TeamFormProps {
 export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
   const { addTeam, editTeam } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamSchema),
@@ -46,34 +47,44 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
         description: teamToEdit.description,
         totalPoints: teamToEdit.totalPoints ?? 200,
       });
-      setLogoPreview(teamToEdit.logo || "");
+      setLogoUrl(teamToEdit.logo || "");
     } else if (!open) {
       form.reset({ name: "", location: "", color: "#1a73e8", description: "", totalPoints: 200 });
-      setLogoPreview("");
+      setLogoUrl("");
     }
   }, [teamToEdit, open, form]);
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Logo must be under 2MB"); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) { toast.error("Logo must be under 5MB"); return; }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload?folder=teams", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setLogoUrl(url);
+    } catch {
+      toast.error("Failed to upload logo");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeLogo = () => {
-    setLogoPreview("");
+    setLogoUrl("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const onSubmit = async (data: TeamFormValues) => {
     try {
       if (teamToEdit) {
-        await editTeam(teamToEdit.id, { ...data, logo: logoPreview });
+        await editTeam(teamToEdit.id, { ...data, logo: logoUrl });
         toast.success("Team updated successfully");
       } else {
-        await addTeam({ ...data, logo: logoPreview, usedPoints: 0 });
+        await addTeam({ ...data, logo: logoUrl, usedPoints: 0 });
         toast.success("Team added successfully");
       }
       onOpenChange(false);
@@ -99,9 +110,9 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
             {/* Logo Upload */}
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
-                {logoPreview ? (
+                {logoUrl ? (
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-primary/60 bg-black/40">
-                    <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain p-1" />
+                    <img src={logoUrl} alt="Logo preview" className="w-full h-full object-contain p-1" />
                     <button
                       type="button"
                       onClick={removeLogo}
@@ -124,12 +135,13 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center"
+                  disabled={uploading}
+                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center disabled:opacity-50"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  {logoPreview ? "Change Logo" : "Upload Logo"}
+                  {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {uploading ? "Uploading…" : logoUrl ? "Change Logo" : "Upload Logo"}
                 </button>
-                <p className="text-[10px] text-white/40 mt-1.5 text-center">PNG/JPG/WebP, max 2MB</p>
+                <p className="text-[10px] text-white/40 mt-1.5 text-center">PNG/JPG/WebP, max 5MB</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -189,7 +201,7 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
 
             <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
               <Button type="button" variant="outline" className="border-white/20 text-white" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">{teamToEdit ? "Save Changes" : "Add Team"}</Button>
+              <Button type="submit" disabled={uploading} className="bg-primary text-primary-foreground hover:bg-primary/90">{teamToEdit ? "Save Changes" : "Add Team"}</Button>
             </div>
           </form>
         </Form>

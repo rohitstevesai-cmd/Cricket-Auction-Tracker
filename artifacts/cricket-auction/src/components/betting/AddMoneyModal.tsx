@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { bettingFetch } from "@/context/BettingContext";
 import { toast } from "sonner";
-import { Upload, IndianRupee, Hash, Image } from "lucide-react";
+import { Upload, IndianRupee, Hash, Loader2, CheckCircle2 } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -20,16 +20,26 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
   const [amount, setAmount] = useState("");
   const [utrNo, setUtrNo] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImageUrl(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) { toast.error("Screenshot must be under 5MB"); return; }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload?folder=transactions", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setImageUrl(url);
+    } catch {
+      toast.error("Failed to upload screenshot");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +54,7 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
         body: JSON.stringify({ amount: Number(amount), utrNo: utrNo.trim(), imageUrl }),
       });
       toast.success("Add money request submitted! Awaiting approval.");
-      setAmount(""); setUtrNo(""); setImageUrl(""); setImageFile(null); setStep("qr");
+      setAmount(""); setUtrNo(""); setImageUrl(""); setStep("qr");
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -55,7 +65,7 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
   };
 
   const handleClose = () => {
-    setStep("qr"); setAmount(""); setUtrNo(""); setImageUrl(""); setImageFile(null);
+    setStep("qr"); setAmount(""); setUtrNo(""); setImageUrl("");
     onClose();
   };
 
@@ -98,22 +108,30 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
             <div>
               <Label className="text-white/70 text-xs uppercase tracking-wider mb-1 block">Payment Screenshot</Label>
               <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-white/20 rounded-xl p-4 cursor-pointer hover:border-yellow-400/50 transition-colors">
-                {imageUrl ? (
-                  <img src={imageUrl} alt="Screenshot" className="max-h-32 object-contain rounded" />
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
+                    <span className="text-white/40 text-sm">Uploading…</span>
+                  </div>
+                ) : imageUrl ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img src={imageUrl} alt="Screenshot" className="max-h-32 object-contain rounded" />
+                    <span className="flex items-center gap-1 text-green-400 text-xs"><CheckCircle2 className="w-3.5 h-3.5" /> Uploaded</span>
+                  </div>
                 ) : (
                   <>
                     <Upload className="w-8 h-8 text-white/30 mb-2" />
                     <span className="text-white/40 text-sm">Click to upload screenshot</span>
                   </>
                 )}
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
               </label>
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setStep("qr")} className="flex-1 border-white/20 text-white">
                 Back
               </Button>
-              <Button type="submit" disabled={loading} className="flex-1 bg-yellow-400 text-black font-bold hover:bg-yellow-300">
+              <Button type="submit" disabled={loading || uploading} className="flex-1 bg-yellow-400 text-black font-bold hover:bg-yellow-300">
                 {loading ? "Submitting…" : "Submit Request"}
               </Button>
             </div>
