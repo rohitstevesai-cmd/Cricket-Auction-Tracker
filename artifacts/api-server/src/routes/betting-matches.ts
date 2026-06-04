@@ -169,6 +169,9 @@ router.get("/betting/admin/bets", async (req, res) => {
       userName: bettingUsersTable.name,
       userEmail: bettingUsersTable.email,
       matchTitle: matchesTable.title,
+      matchTeam1: matchesTable.team1,
+      matchTeam2: matchesTable.team2,
+      matchWinner: matchesTable.winner,
     }).from(betsTable).leftJoin(bettingUsersTable, eq(betsTable.userId, bettingUsersTable.id)).leftJoin(matchesTable, eq(betsTable.matchId, matchesTable.id)).orderBy(desc(betsTable.createdAt));
     res.json(bets);
   } catch {
