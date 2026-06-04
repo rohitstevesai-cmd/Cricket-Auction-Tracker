@@ -38,7 +38,10 @@ router.put("/teams/:id", async (req, res) => {
     const { id } = req.params;
     const { id: _id, ...updates } = req.body;
     const [updated] = await db.update(teamsTable).set(updates).where(eq(teamsTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "Team not found" });
+    if (!updated) {
+      res.status(404).json({ error: "Team not found" });
+      return;
+    }
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "Failed to update team" });
@@ -59,7 +62,7 @@ router.delete("/teams/:id", async (req, res) => {
     await db.delete(teamsTable).where(eq(teamsTable.id, id));
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to delete team" });
+    res.status(500).json({ error: "Failed to delete teams" });
   }
 });
 

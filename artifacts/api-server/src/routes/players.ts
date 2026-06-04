@@ -40,7 +40,10 @@ router.put("/players/:id", async (req, res) => {
     const { id } = req.params;
     const { id: _id, createdAt: _c, ...updates } = req.body;
     const [updated] = await db.update(playersTable).set(updates).where(eq(playersTable.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: "Player not found" });
+    if (!updated) {
+      res.status(404).json({ error: "Player not found" });
+      return;
+    }
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "Failed to update player" });
@@ -72,10 +75,14 @@ router.post("/players/:id/assign", async (req, res) => {
     const { teamId } = req.body;
     const [player] = await db.select().from(playersTable).where(eq(playersTable.id, id));
     const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId));
-    if (!player || !team) return res.status(404).json({ error: "Player or team not found" });
+    if (!player || !team) {
+      res.status(404).json({ error: "Player or team not found" });
+      return;
+    }
     const available = team.totalPoints - team.usedPoints;
     if (available < player.points) {
-      return res.status(400).json({ error: `Not enough points. Need ${player.points}, team has ${available} available.` });
+      res.status(400).json({ error: `Not enough points. Need ${player.points}, team has ${available} available.` });
+      return;
     }
     await db.update(playersTable).set({ status: "sold", teamId }).where(eq(playersTable.id, id));
     await db.update(teamsTable).set({ usedPoints: team.usedPoints + player.points }).where(eq(teamsTable.id, teamId));
@@ -89,7 +96,10 @@ router.post("/players/:id/unassign", async (req, res) => {
   try {
     const { id } = req.params;
     const [player] = await db.select().from(playersTable).where(eq(playersTable.id, id));
-    if (!player) return res.status(404).json({ error: "Player not found" });
+    if (!player) {
+      res.status(404).json({ error: "Player not found" });
+      return;
+    }
     if (player.teamId) {
       const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, player.teamId));
       if (team) {
