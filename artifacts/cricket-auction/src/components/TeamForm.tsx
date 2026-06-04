@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Shield, Upload, X } from "lucide-react";
 
 const teamSchema = z.object({
   name: z.string().min(2, "Team name is required"),
   location: z.string().min(2, "Location is required"),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/i, "Must be a valid hex color"),
   description: z.string(),
-  logo: z.string(),
   totalPoints: z.coerce.number().min(1, "Min 1 point").max(99999),
 });
 
@@ -29,10 +29,12 @@ interface TeamFormProps {
 
 export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
   const { addTeam, editTeam } = useData();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
 
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamSchema),
-    defaultValues: { name: "", location: "", color: "#1a73e8", description: "", logo: "", totalPoints: 200 },
+    defaultValues: { name: "", location: "", color: "#1a73e8", description: "", totalPoints: 200 },
   });
 
   useEffect(() => {
@@ -42,21 +44,36 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
         location: teamToEdit.location,
         color: teamToEdit.color,
         description: teamToEdit.description,
-        logo: teamToEdit.logo,
         totalPoints: teamToEdit.totalPoints ?? 200,
       });
+      setLogoPreview(teamToEdit.logo || "");
     } else if (!open) {
-      form.reset({ name: "", location: "", color: "#1a73e8", description: "", logo: "", totalPoints: 200 });
+      form.reset({ name: "", location: "", color: "#1a73e8", description: "", totalPoints: 200 });
+      setLogoPreview("");
     }
   }, [teamToEdit, open, form]);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Logo must be under 2MB"); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const onSubmit = async (data: TeamFormValues) => {
     try {
       if (teamToEdit) {
-        await editTeam(teamToEdit.id, data);
+        await editTeam(teamToEdit.id, { ...data, logo: logoPreview });
         toast.success("Team updated successfully");
       } else {
-        await addTeam({ ...data, usedPoints: 0 });
+        await addTeam({ ...data, logo: logoPreview, usedPoints: 0 });
         toast.success("Team added successfully");
       }
       onOpenChange(false);
@@ -64,6 +81,8 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
       toast.error(e.message || "Failed to save team");
     }
   };
+
+  const watchedColor = form.watch("color");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,6 +95,51 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+
+            {/* Logo Upload */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-shrink-0">
+                {logoPreview ? (
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-primary/60 bg-black/40">
+                    <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain p-1" />
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="w-20 h-20 rounded-xl flex items-center justify-center border-2 border-dashed border-white/20 bg-black/30"
+                    style={{ borderColor: watchedColor + "66" }}
+                  >
+                    <Shield className="w-8 h-8 text-white/20" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-white/70 mb-2 font-medium">Team Logo / Badge</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {logoPreview ? "Change Logo" : "Upload Logo"}
+                </button>
+                <p className="text-[10px] text-white/40 mt-1.5 text-center">PNG/JPG/WebP, max 2MB</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleLogoChange}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-white/80">Team Name</FormLabel>
@@ -104,7 +168,6 @@ export function TeamForm({ open, onOpenChange, teamToEdit }: TeamFormProps) {
               )} />
             </div>
 
-            {/* Total Points Budget */}
             <FormField control={form.control} name="totalPoints" render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-white/80 flex items-center gap-1.5">
