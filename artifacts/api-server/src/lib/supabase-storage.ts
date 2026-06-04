@@ -1,22 +1,29 @@
-import { createClient } from "@supabase/supabase-js";
-import ws from "ws";
 import { supabaseConfig } from "../../../../config";
 
-export const supabaseAdmin = createClient(
-  supabaseConfig.url,
-  supabaseConfig.serviceRoleKey,
-  { realtime: { transport: ws } },
-);
+const BUCKET = "images";
+const BASE = `${supabaseConfig.url}/storage/v1`;
+const AUTH = `Bearer ${supabaseConfig.serviceRoleKey}`;
 
-export const BUCKET = "images";
+async function ensureBucket(): Promise<void> {
+  const listRes = await fetch(`${BASE}/bucket`, {
+    headers: { Authorization: AUTH, apikey: supabaseConfig.serviceRoleKey },
+  });
+  if (!listRes.ok) return;
+  const buckets: { name: string }[] = await listRes.json();
+  if (buckets.some((b) => b.name === BUCKET)) return;
 
-export async function ensureBucket() {
-  const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-  const exists = buckets?.some((b) => b.name === BUCKET);
-  if (!exists) {
-    await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
-  }
+  await fetch(`${BASE}/bucket`, {
+    method: "POST",
+    headers: {
+      Authorization: AUTH,
+      apikey: supabaseConfig.serviceRoleKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
+  });
 }
+
+let bucketReady = false;
 
 export async function uploadToStorage(
   folder: string,
@@ -24,12 +31,27 @@ export async function uploadToStorage(
   buffer: Buffer,
   mimetype: string,
 ): Promise<string> {
-  await ensureBucket();
+  if (!bucketReady) {
+    await ensureBucket();
+    bucketReady = true;
+  }
+
   const path = `${folder}/${filename}`;
-  const { error } = await supabaseAdmin.storage
-    .from(BUCKET)
-    .upload(path, buffer, { contentType: mimetype, upsert: true });
-  if (error) throw new Error(`Storage upload failed: ${error.message}`);
-  const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const res = await fetch(`${BASE}/object/${BUCKET}/${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: AUTH,
+      apikey: supabaseConfig.serviceRoleKey,
+      "Content-Type": mimetype,
+      "x-upsert": "true",
+    },
+    body: buffer,
+  });
+
+  if (!res.ok) {
+    const msg = await res.text();
+    throw new Error(`Storage upload failed: ${msg}`);
+  }
+
+  return `${supabaseConfig.url}/storage/v1/object/public/${BUCKET}/${path}`;
 }
