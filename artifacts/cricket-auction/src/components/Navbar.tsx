@@ -57,6 +57,7 @@ export function Navbar() {
 
   const verifyPin = (code: string) => {
     if (code === ADMIN_PIN) {
+      sessionStorage.setItem("splAdmin", "1");
       setPinOpen(false);
       setLocation("/admin");
     } else {
