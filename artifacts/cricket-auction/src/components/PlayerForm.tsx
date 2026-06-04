@@ -17,6 +17,7 @@ const playerSchema = z.object({
   village: z.string().min(2, "Village/City is required"),
   playerType: z.enum(["Batsman", "Bowler", "All-Rounder", "Wicket-Keeper"]),
   additionalTag: z.enum(["Normal Player", "Captain", "Vice Captain"]),
+  points: z.coerce.number().min(1, "Min 1 point").max(9999, "Max 9999"),
   teamId: z.string().nullable(),
 });
 
@@ -45,6 +46,7 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
       village: "",
       playerType: "Batsman",
       additionalTag: "Normal Player",
+      points: 10,
       teamId: null,
     },
   });
@@ -59,18 +61,12 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
         village: playerToEdit.village,
         playerType: playerToEdit.playerType,
         additionalTag: playerToEdit.additionalTag,
+        points: playerToEdit.points ?? 10,
         teamId: playerToEdit.teamId,
       });
       setPhotoPreview(playerToEdit.photo || "");
     } else if (!open) {
-      form.reset({
-        name: "",
-        age: 22,
-        village: "",
-        playerType: "Batsman",
-        additionalTag: "Normal Player",
-        teamId: null,
-      });
+      form.reset({ name: "", age: 22, village: "", playerType: "Batsman", additionalTag: "Normal Player", points: 10, teamId: null });
       setPhotoPreview("");
     }
   }, [playerToEdit, open, form]);
@@ -78,17 +74,9 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Photo must be under 2MB");
-      return;
-    }
-
+    if (file.size > 2 * 1024 * 1024) { toast.error("Photo must be under 2MB"); return; }
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = ev.target?.result as string;
-      setPhotoPreview(base64);
-    };
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -97,16 +85,20 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const onSubmit = (data: PlayerFormValues) => {
+  const onSubmit = async (data: PlayerFormValues) => {
     const status = data.teamId ? "sold" : "available";
-    if (playerToEdit) {
-      editPlayer(playerToEdit.id, { ...data, status, photo: photoPreview });
-      toast.success("Player updated");
-    } else {
-      addPlayer({ ...data, status, photo: photoPreview });
-      toast.success("Player added");
+    try {
+      if (playerToEdit) {
+        await editPlayer(playerToEdit.id, { ...data, status, photo: photoPreview });
+        toast.success("Player updated");
+      } else {
+        await addPlayer({ ...data, status, photo: photoPreview });
+        toast.success("Player added");
+      }
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save player");
     }
-    onOpenChange(false);
   };
 
   return (
@@ -120,183 +112,124 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
-
             {/* Photo Upload */}
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
                 {photoPreview ? (
                   <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-primary/60">
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={removePhoto}
-                      className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
-                    >
+                    <button type="button" onClick={removePhoto} className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                       <X className="w-3 h-3 text-white" />
                     </button>
                   </div>
                 ) : (
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center font-heading text-2xl text-white/60 border-2 border-dashed border-white/20 bg-black/30"
-                  >
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center font-heading text-2xl text-white/60 border-2 border-dashed border-white/20 bg-black/30">
                     {watchedName ? getInitials(watchedName) : <Camera className="w-7 h-7 text-white/30" />}
                   </div>
                 )}
               </div>
               <div className="flex-1">
                 <p className="text-sm text-white/70 mb-2 font-medium">Player Photo</p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center"
-                >
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white px-3 py-2 rounded-lg transition-colors w-full justify-center">
                   <Upload className="w-3.5 h-3.5" />
                   {photoPreview ? "Change Photo" : "Upload Photo"}
                 </button>
                 <p className="text-[10px] text-white/40 mt-1.5 text-center">JPG/PNG, max 2MB</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                  data-testid="input-photo-upload"
-                />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
               </div>
             </div>
 
             {/* Name */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-white/80 text-sm">Full Name</FormLabel>
+                <FormControl><Input placeholder="e.g. Virat Kohli" className="bg-black/40 border-white/10 h-9 text-sm" {...field} /></FormControl>
+                <FormMessage className="text-red-400 text-xs" />
+              </FormItem>
+            )} />
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="age" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/80 text-sm">Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Virat Kohli" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
-                  </FormControl>
+                  <FormLabel className="text-white/80 text-sm">Age</FormLabel>
+                  <FormControl><Input type="number" className="bg-black/40 border-white/10 h-9 text-sm" {...field} /></FormControl>
                   <FormMessage className="text-red-400 text-xs" />
                 </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="age"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white/80 text-sm">Age</FormLabel>
-                    <FormControl>
-                      <Input type="number" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="village"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white/80 text-sm">Village/City</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Delhi" className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="playerType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white/80 text-sm">Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Batsman">Batsman</SelectItem>
-                        <SelectItem value="Bowler">Bowler</SelectItem>
-                        <SelectItem value="All-Rounder">All-Rounder</SelectItem>
-                        <SelectItem value="Wicket-Keeper">Wicket-Keeper</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="additionalTag"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-white/80 text-sm">Role Tag</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Normal Player">Normal</SelectItem>
-                        <SelectItem value="Captain">Captain</SelectItem>
-                        <SelectItem value="Vice Captain">Vice Captain</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="teamId"
-              render={({ field }) => (
+              )} />
+              <FormField control={form.control} name="village" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-white/80 text-sm">Assign to Team (Optional)</FormLabel>
-                  <Select
-                    onValueChange={(val) => field.onChange(val === "none" ? null : val)}
-                    value={field.value || "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
+                  <FormLabel className="text-white/80 text-sm">Village/City</FormLabel>
+                  <FormControl><Input placeholder="e.g. Delhi" className="bg-black/40 border-white/10 h-9 text-sm" {...field} /></FormControl>
+                  <FormMessage className="text-red-400 text-xs" />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="playerType" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/80 text-sm">Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="none">Available (No Team)</SelectItem>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                      ))}
+                      <SelectItem value="Batsman">Batsman</SelectItem>
+                      <SelectItem value="Bowler">Bowler</SelectItem>
+                      <SelectItem value="All-Rounder">All-Rounder</SelectItem>
+                      <SelectItem value="Wicket-Keeper">Wicket-Keeper</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage className="text-red-400 text-xs" />
                 </FormItem>
-              )}
-            />
+              )} />
+              <FormField control={form.control} name="additionalTag" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/80 text-sm">Role Tag</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="Normal Player">Normal</SelectItem>
+                      <SelectItem value="Captain">Captain</SelectItem>
+                      <SelectItem value="Vice Captain">Vice Captain</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage className="text-red-400 text-xs" />
+                </FormItem>
+              )} />
+            </div>
+
+            {/* Points */}
+            <FormField control={form.control} name="points" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-white/80 text-sm flex items-center gap-1.5">
+                  Player Points
+                  <span className="text-[10px] text-white/40 font-normal">(auction value)</span>
+                </FormLabel>
+                <FormControl>
+                  <Input type="number" min={1} max={9999} className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
+                </FormControl>
+                <FormMessage className="text-red-400 text-xs" />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="teamId" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-white/80 text-sm">Assign to Team (Optional)</FormLabel>
+                <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
+                  <FormControl><SelectTrigger className="bg-black/40 border-white/10 h-9 text-sm"><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Available (No Team)</SelectItem>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage className="text-red-400 text-xs" />
+              </FormItem>
+            )} />
 
             <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-white/20 text-white"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                {playerToEdit ? "Save Changes" : "Add Player"}
-              </Button>
+              <Button type="button" variant="outline" size="sm" className="border-white/20 text-white" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">{playerToEdit ? "Save Changes" : "Add Player"}</Button>
             </div>
           </form>
         </Form>

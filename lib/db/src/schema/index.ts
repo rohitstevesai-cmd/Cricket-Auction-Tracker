@@ -1,20 +1,26 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
+import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
 
-export {}
+export const playersTable = pgTable("spl_players", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  age: integer("age").notNull(),
+  village: text("village").notNull(),
+  playerType: text("player_type").notNull(),
+  additionalTag: text("additional_tag").notNull().default("Normal Player"),
+  photo: text("photo").notNull().default(""),
+  status: text("status").notNull().default("available"),
+  teamId: text("team_id"),
+  points: integer("points").notNull().default(10),
+  createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
+});
+
+export const teamsTable = pgTable("spl_teams", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  logo: text("logo").notNull().default(""),
+  location: text("location").notNull(),
+  color: text("color").notNull().default("#1a73e8"),
+  description: text("description").notNull().default(""),
+  totalPoints: integer("total_points").notNull().default(200),
+  usedPoints: integer("used_points").notNull().default(0),
+});

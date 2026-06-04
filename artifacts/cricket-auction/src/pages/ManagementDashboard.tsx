@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft } from "lucide-react";
+import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerForm } from "@/components/PlayerForm";
 import { TeamForm } from "@/components/TeamForm";
@@ -60,17 +60,17 @@ export default function ManagementDashboard() {
     setTeamFormOpen(true);
   };
 
-  const confirmDeletePlayer = () => {
+  const confirmDeletePlayer = async () => {
     if (playerToDelete) {
-      deletePlayer(playerToDelete);
+      await deletePlayer(playerToDelete);
       toast.success("Player deleted permanently");
       setPlayerToDelete(null);
     }
   };
 
-  const confirmDeleteTeam = () => {
+  const confirmDeleteTeam = async () => {
     if (teamToDelete) {
-      deleteTeam(teamToDelete, deleteTeamPlayersAlso);
+      await deleteTeam(teamToDelete, deleteTeamPlayersAlso);
       toast.success(deleteTeamPlayersAlso ? "Team and its players deleted" : "Team deleted. Players returned to auction.");
       setTeamToDelete(null);
       setDeleteTeamPlayersAlso(false);
@@ -134,6 +134,7 @@ export default function ManagementDashboard() {
                       <th className="px-3 py-2 whitespace-nowrap">Age / City</th>
                       <th className="px-3 py-2 whitespace-nowrap">Type</th>
                       <th className="px-3 py-2 whitespace-nowrap">Role</th>
+                      <th className="px-3 py-2 whitespace-nowrap">Pts</th>
                       <th className="px-3 py-2 whitespace-nowrap">Status</th>
                       <th className="px-3 py-2 text-right whitespace-nowrap">Act.</th>
                     </tr>
@@ -170,6 +171,11 @@ export default function ManagementDashboard() {
                           ) : (
                             <span className="text-[10px] text-white/30">—</span>
                           )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <span className="flex items-center gap-0.5 text-primary font-bold text-[10px]">
+                            <Star className="w-2.5 h-2.5 fill-primary" />{player.points ?? 0}
+                          </span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {player.status === "available" ? (
@@ -227,6 +233,13 @@ export default function ManagementDashboard() {
                     <div className="min-w-0 flex-1">
                       <h3 className="font-heading text-base text-white uppercase leading-tight truncate">{team.name}</h3>
                       <p className="text-[11px] text-muted-foreground">{team.location} · <span className="text-white/60 font-semibold">{players.filter(p => p.teamId === team.id).length} players</span></p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Star className="w-3 h-3 fill-primary text-primary flex-shrink-0" />
+                        <span className="text-[10px] text-white/50">{team.totalPoints - team.usedPoints} / {team.totalPoints} pts left</span>
+                        <div className="flex-1 h-1 bg-black/40 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${team.totalPoints > 0 ? Math.round((team.usedPoints / team.totalPoints) * 100) : 0}%`, backgroundColor: team.color }} />
+                        </div>
+                      </div>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white" onClick={() => openEditTeam(team)}>
