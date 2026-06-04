@@ -4,15 +4,67 @@ import { useBetting, bettingFetch, Match, Bet } from "@/context/BettingContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AddMoneyModal } from "@/components/betting/AddMoneyModal";
 import { WithdrawModal } from "@/components/betting/WithdrawModal";
 import { PlaceBetModal } from "@/components/betting/PlaceBetModal";
 import { toast } from "sonner";
-import { Zap, Trophy, Clock, CheckCircle, XCircle, RefreshCw, IndianRupee, TrendingUp, Star, History, Ticket } from "lucide-react";
+import { Zap, Trophy, Clock, RefreshCw, IndianRupee, TrendingUp, Star, History, Ticket, CheckCircle, XCircle, MinusCircle, RotateCcw } from "lucide-react";
 
 type Tab = "betting" | "profile";
 type ProfileTab = "wallet" | "history";
+
+function BetStatusBadge({ bet }: { bet: Bet }) {
+  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.matchTeam2;
+  const matchWinner = bet.matchWinner;
+
+  if (bet.status === "won") {
+    return (
+      <div className="text-right">
+        <div className="flex items-center justify-end gap-1.5 bg-green-500/15 border border-green-500/30 rounded-lg px-2.5 py-1.5">
+          <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+          <span className="text-green-400 text-sm font-bold uppercase">WON</span>
+        </div>
+        {bet.payout > 0 && (
+          <p className="text-green-400 text-xs font-semibold mt-1">+₹{bet.payout}</p>
+        )}
+      </div>
+    );
+  }
+  if (bet.status === "lost") {
+    const winnerName = matchWinner === "team1" ? bet.matchTeam1 : matchWinner === "team2" ? bet.matchTeam2 : null;
+    return (
+      <div className="text-right">
+        <div className="flex items-center justify-end gap-1.5 bg-red-500/15 border border-red-500/30 rounded-lg px-2.5 py-1.5">
+          <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <span className="text-red-400 text-sm font-bold uppercase">LOST</span>
+        </div>
+        {winnerName && (
+          <p className="text-white/30 text-xs mt-1">{winnerName} won</p>
+        )}
+      </div>
+    );
+  }
+  if (bet.status === "refunded") {
+    return (
+      <div className="text-right">
+        <div className="flex items-center justify-end gap-1.5 bg-blue-500/15 border border-blue-500/30 rounded-lg px-2.5 py-1.5">
+          <RotateCcw className="w-4 h-4 text-blue-400 shrink-0" />
+          <span className="text-blue-400 text-sm font-bold uppercase">DRAW</span>
+        </div>
+        <p className="text-blue-400/70 text-xs mt-1">+₹{bet.amount} refunded</p>
+      </div>
+    );
+  }
+  return (
+    <div className="text-right">
+      <div className="flex items-center justify-end gap-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-2.5 py-1.5">
+        <MinusCircle className="w-4 h-4 text-yellow-400 shrink-0" />
+        <span className="text-yellow-400 text-sm font-bold uppercase">PENDING</span>
+      </div>
+      <p className="text-white/30 text-xs mt-1">Awaiting result</p>
+    </div>
+  );
+}
 
 export default function BettingDashboard() {
   const { user, loading, refreshUser } = useBetting();
@@ -39,7 +91,7 @@ export default function BettingDashboard() {
     try {
       const data = await bettingFetch("/betting/matches");
       setMatches(data);
-    } catch { /* ignore */ } finally { setLoadingMatches(false); }
+    } catch { } finally { setLoadingMatches(false); }
   }, []);
 
   const fetchBets = useCallback(async () => {
@@ -47,7 +99,7 @@ export default function BettingDashboard() {
     try {
       const data = await bettingFetch("/betting/bets");
       setMyBets(data);
-    } catch { /* ignore */ } finally { setLoadingBets(false); }
+    } catch { } finally { setLoadingBets(false); }
   }, []);
 
   const fetchTransactions = useCallback(async () => {
@@ -55,7 +107,7 @@ export default function BettingDashboard() {
     try {
       const data = await bettingFetch("/betting/transactions");
       setTransactions(data);
-    } catch { /* ignore */ } finally { setLoadingTxns(false); }
+    } catch { } finally { setLoadingTxns(false); }
   }, []);
 
   useEffect(() => { fetchMatches(); }, [fetchMatches]);
@@ -72,18 +124,15 @@ export default function BettingDashboard() {
     return "bg-red-500/20 text-red-300 border-red-500/30";
   };
 
-  const betStatusColor = (s: string) => {
-    if (s === "won") return "text-green-400";
-    if (s === "lost") return "text-red-400";
-    if (s === "refunded") return "text-blue-400";
-    return "text-yellow-400";
-  };
-
   const txnStatusColor = (s: string) => {
     if (s === "approved") return "text-green-400";
     if (s === "cancelled") return "text-red-400";
     return "text-yellow-400";
   };
+
+  const wonBets = myBets.filter(b => b.status === "won").length;
+  const lostBets = myBets.filter(b => b.status === "lost").length;
+  const totalPayout = myBets.filter(b => b.status === "won").reduce((s, b) => s + b.payout, 0);
 
   return (
     <div className="min-h-screen bg-[#0a0f1c] text-white flex flex-col">
@@ -91,7 +140,7 @@ export default function BettingDashboard() {
       <main className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 py-6">
 
         {/* Balance Card */}
-        <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-400/5 border border-yellow-400/20 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-400/5 border border-yellow-400/20 rounded-2xl p-5 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-yellow-400/70 text-xs uppercase tracking-widest font-semibold">My Balance</p>
             <p className="text-4xl font-heading text-yellow-400 mt-1">₹{(user?.balance ?? 0).toLocaleString()}</p>
@@ -105,6 +154,24 @@ export default function BettingDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Bet Stats Row */}
+        {myBets.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+              <p className="text-green-400 text-xl font-heading">{wonBets}</p>
+              <p className="text-white/40 text-xs mt-0.5">Won</p>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+              <p className="text-red-400 text-xl font-heading">{lostBets}</p>
+              <p className="text-white/40 text-xs mt-0.5">Lost</p>
+            </div>
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 text-center">
+              <p className="text-yellow-400 text-xl font-heading">₹{totalPayout}</p>
+              <p className="text-white/40 text-xs mt-0.5">Total Won</p>
+            </div>
+          </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex bg-white/5 border border-white/10 rounded-lg p-1 mb-6 w-fit">
@@ -191,22 +258,33 @@ export default function BettingDashboard() {
               </div>
             ) : (
               <div className="space-y-2">
-                {myBets.map(bet => (
-                  <div key={bet.id} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-white text-sm font-semibold">{bet.matchTitle}</p>
-                      <p className="text-white/50 text-xs mt-0.5">
-                        Bet on <span className="text-white/80 font-semibold">{bet.betOn === "team1" ? bet.matchTeam1 : bet.matchTeam2}</span>
-                        {" · "}₹{bet.amount}
-                      </p>
-                      <p className="text-white/30 text-xs">{new Date(bet.createdAt).toLocaleString()}</p>
+                {myBets.map(bet => {
+                  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.matchTeam2;
+                  const isSettled = bet.status === "won" || bet.status === "lost" || bet.status === "refunded";
+                  return (
+                    <div
+                      key={bet.id}
+                      className={`border rounded-xl p-3 flex items-center justify-between gap-3 transition-colors ${
+                        bet.status === "won" ? "bg-green-500/5 border-green-500/20" :
+                        bet.status === "lost" ? "bg-red-500/5 border-red-500/15" :
+                        bet.status === "refunded" ? "bg-blue-500/5 border-blue-500/15" :
+                        "bg-white/5 border-white/10"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-semibold truncate">{bet.matchTitle}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-white/40 text-xs">Bet on</span>
+                          <span className="text-white/90 text-xs font-bold">{teamBetOn}</span>
+                          <span className="text-white/25 text-xs">·</span>
+                          <span className="text-white/60 text-xs font-semibold">₹{bet.amount}</span>
+                        </div>
+                        <p className="text-white/25 text-xs mt-0.5">{new Date(bet.createdAt).toLocaleString()}</p>
+                      </div>
+                      <BetStatusBadge bet={bet} />
                     </div>
-                    <div className="text-right">
-                      <span className={`text-sm font-bold uppercase ${betStatusColor(bet.status)}`}>{bet.status}</span>
-                      {bet.payout > 0 && <p className="text-green-400 text-xs">+₹{bet.payout}</p>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -222,14 +300,25 @@ export default function BettingDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-white/80 text-sm font-semibold">{match.title}</p>
-                          <p className="text-white/40 text-xs">{match.team1} vs {match.team2}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`text-xs font-semibold ${match.winner === "team1" ? "text-green-400" : "text-white/40"}`}>{match.team1}</span>
+                            <span className="text-white/20 text-xs">vs</span>
+                            <span className={`text-xs font-semibold ${match.winner === "team2" ? "text-green-400" : "text-white/40"}`}>{match.team2}</span>
+                          </div>
                         </div>
                         {match.winner && (
                           <div className="text-right">
-                            <p className="text-xs text-white/40">Winner</p>
-                            <p className="text-green-400 text-sm font-bold">
-                              {match.winner === "draw" ? "Draw" : match.winner === "team1" ? match.team1 : match.team2}
-                            </p>
+                            {match.winner === "draw" ? (
+                              <span className="text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-1 rounded-lg font-bold">DRAW</span>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-white/30">Winner</p>
+                                <p className="text-green-400 text-sm font-bold flex items-center gap-1">
+                                  <Trophy className="w-3 h-3" />
+                                  {match.winner === "team1" ? match.team1 : match.team2}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

@@ -211,20 +211,37 @@ export default function BettingAdmin() {
           <div className="space-y-2">
             {bets.length === 0 ? (
               <div className="text-center py-12 text-white/40">No bets yet</div>
-            ) : bets.map(b => (
-              <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-white text-sm font-semibold">{b.matchTitle}</p>
-                  <p className="text-white/60 text-xs">{b.userName} · bet on {b.betOn}</p>
-                  <p className="text-white/30 text-xs">{new Date(b.createdAt).toLocaleString()}</p>
+            ) : bets.map(b => {
+              const teamName = b.betOn === "team1" ? b.matchTeam1 : b.matchTeam2;
+              const statusStyle =
+                b.status === "won" ? "bg-green-500/15 border-green-500/20" :
+                b.status === "lost" ? "bg-red-500/10 border-red-500/15" :
+                b.status === "refunded" ? "bg-blue-500/10 border-blue-500/15" :
+                "bg-white/5 border-white/10";
+              return (
+                <div key={b.id} className={`border rounded-xl p-3 flex items-center justify-between gap-3 ${statusStyle}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-semibold truncate">{b.matchTitle}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-white/50 text-xs">{b.userName}</span>
+                      <span className="text-white/20 text-xs">·</span>
+                      <span className="text-white/40 text-xs">bet on</span>
+                      <span className="text-white/80 text-xs font-bold">{teamName ?? b.betOn}</span>
+                    </div>
+                    <p className="text-white/25 text-xs">{new Date(b.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-white font-heading">₹{b.amount}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {b.status === "won" && <CheckCircle className="w-3 h-3 text-green-400" />}
+                      {b.status === "lost" && <XCircle className="w-3 h-3 text-red-400" />}
+                      <p className={`text-xs font-bold uppercase ${b.status === "won" ? "text-green-400" : b.status === "lost" ? "text-red-400" : b.status === "refunded" ? "text-blue-400" : "text-yellow-400"}`}>{b.status}</p>
+                    </div>
+                    {b.payout > 0 && <p className="text-green-400 text-xs">+₹{b.payout}</p>}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-white font-heading">₹{b.amount}</p>
-                  <p className={`text-xs font-bold ${b.status === "won" ? "text-green-400" : b.status === "lost" ? "text-red-400" : b.status === "refunded" ? "text-blue-400" : "text-yellow-400"}`}>{b.status}</p>
-                  {b.payout > 0 && <p className="text-green-400 text-xs">+₹{b.payout}</p>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
@@ -340,33 +357,90 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
 }
 
 function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: () => void; onDeclared: () => void }) {
-  const [winner, setWinner] = useState<"team1" | "team2" | "draw">("team1");
+  const [winner, setWinner] = useState<"team1" | "team2" | "draw" | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleDeclare = async () => {
+    if (!winner) return;
     setLoading(true);
     try {
       const res = await bettingFetch(`/betting/admin/matches/${match.id}/winner`, { method: "POST", body: JSON.stringify({ winner }) });
-      toast.success(`Winner declared! ${res.settled} bets settled.`);
+      toast.success(`Result declared! ${res.settled} bets settled.`);
       onDeclared();
     } catch (err: any) { toast.error(err.message); } finally { setLoading(false); }
   };
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-xs bg-[#0d1425] border-white/10 text-white">
-        <DialogHeader><DialogTitle className="font-heading text-xl text-yellow-400 uppercase">Declare Winner</DialogTitle></DialogHeader>
-        <p className="text-white/60 text-sm mb-4">{match.title}: {match.team1} vs {match.team2}</p>
+      <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-xl text-yellow-400 uppercase">Declare Match Result</DialogTitle>
+        </DialogHeader>
+        <p className="text-white/50 text-sm mb-1">{match.title}</p>
+        <p className="text-white/80 text-sm font-semibold mb-4">{match.team1} <span className="text-white/30 font-normal">vs</span> {match.team2}</p>
+
+        <p className="text-white/40 text-xs uppercase tracking-wider mb-2 font-semibold">Select the winning team</p>
         <div className="space-y-2 mb-4">
-          {(["team1", "team2", "draw"] as const).map(w => (
-            <button key={w} onClick={() => setWinner(w)} className={`w-full p-3 rounded-xl border-2 text-sm font-bold transition-all ${winner === w ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/60"}`}>
-              {w === "team1" ? match.team1 : w === "team2" ? match.team2 : "Draw / No Result"}
-            </button>
-          ))}
+          {/* Team 1 WIN */}
+          <button
+            onClick={() => setWinner("team1")}
+            className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "team1" ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
+          >
+            <div className="text-left">
+              <p className={`text-sm font-bold ${winner === "team1" ? "text-green-400" : "text-white/80"}`}>{match.team1}</p>
+              <p className="text-white/30 text-xs">Bets on {match.team1} → WIN (2x payout)</p>
+            </div>
+            {winner === "team1" && (
+              <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>
+            )}
+          </button>
+
+          {/* Team 2 WIN */}
+          <button
+            onClick={() => setWinner("team2")}
+            className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "team2" ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
+          >
+            <div className="text-left">
+              <p className={`text-sm font-bold ${winner === "team2" ? "text-green-400" : "text-white/80"}`}>{match.team2}</p>
+              <p className="text-white/30 text-xs">Bets on {match.team2} → WIN (2x payout)</p>
+            </div>
+            {winner === "team2" && (
+              <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>
+            )}
+          </button>
+
+          {/* Draw */}
+          <button
+            onClick={() => setWinner("draw")}
+            className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "draw" ? "border-blue-500 bg-blue-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
+          >
+            <div className="text-left">
+              <p className={`text-sm font-bold ${winner === "draw" ? "text-blue-400" : "text-white/80"}`}>Draw / No Result</p>
+              <p className="text-white/30 text-xs">All bets refunded</p>
+            </div>
+            {winner === "draw" && (
+              <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">DRAW</span>
+            )}
+          </button>
         </div>
+
+        {winner && winner !== "draw" && (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4 text-xs space-y-1">
+            <p className="text-white/60 font-semibold uppercase tracking-wide">Result Summary</p>
+            <p className="text-green-400">✓ Bets on <strong>{winner === "team1" ? match.team1 : match.team2}</strong> → WIN (+2x)</p>
+            <p className="text-red-400">✗ Bets on <strong>{winner === "team1" ? match.team2 : match.team1}</strong> → LOSE</p>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1 border-white/20 text-white">Cancel</Button>
-          <Button onClick={handleDeclare} disabled={loading} className="flex-1 bg-yellow-400 text-black font-bold">{loading ? "Declaring…" : "Declare"}</Button>
+          <Button
+            onClick={handleDeclare}
+            disabled={loading || !winner}
+            className={`flex-1 font-bold ${winner === "draw" ? "bg-blue-500 hover:bg-blue-400 text-white" : "bg-green-500 hover:bg-green-400 text-white"}`}
+          >
+            {loading ? "Declaring…" : "Declare Result"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
