@@ -1,0 +1,1 @@
+- [Betting system architecture](betting-system.md) — session-based auth, 4 new DB tables, routes under /api/betting/*, admin creds hardcoded

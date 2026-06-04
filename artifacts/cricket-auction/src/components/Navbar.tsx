@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield } from "lucide-react";
+import { Shield, Zap, LogOut, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,14 +8,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { BettingAuthModal } from "@/components/betting/BettingAuthModal";
+import { useBetting } from "@/context/BettingContext";
 
 const ADMIN_PIN = "6261";
 
 export function Navbar() {
+  const { user, isAdmin, logout } = useBetting();
   const [clickCount, setClickCount] = useState(0);
   const [pinOpen, setPinOpen] = useState(false);
   const [pin, setPin] = useState(["", "", "", ""]);
   const [pinError, setPinError] = useState(false);
+  const [bettingAuthOpen, setBettingAuthOpen] = useState(false);
   const [, setLocation] = useLocation();
   const inputRefs = [
     useRef<HTMLInputElement>(null),
@@ -71,6 +75,21 @@ export function Navbar() {
     verifyPin(pin.join(""));
   };
 
+  const handleBettingClick = () => {
+    if (isAdmin) {
+      setLocation("/betting-admin");
+    } else if (user) {
+      setLocation("/betting");
+    } else {
+      setBettingAuthOpen(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/");
+  };
+
   return (
     <>
       <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -79,7 +98,31 @@ export function Navbar() {
             <Shield className="h-8 w-8 text-primary" />
             <span className="font-heading text-2xl sm:text-3xl tracking-wide text-white uppercase mt-1">S<span className="text-primary">P</span>L</span>
           </Link>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Online Batting Button */}
+            <button
+              onClick={handleBettingClick}
+              className="flex items-center gap-1.5 bg-yellow-400/10 border border-yellow-400/30 hover:bg-yellow-400/20 text-yellow-400 text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 rounded-lg transition-all active:scale-95"
+            >
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Online Batting</span>
+              <span className="sm:hidden">Batting</span>
+            </button>
+
+            {/* User avatar / logout when logged in */}
+            {user && (
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5">
+                  <User className="w-3.5 h-3.5 text-white/50" />
+                  <span className="text-white/70 text-xs font-semibold max-w-[80px] truncate">{user.name}</span>
+                  <span className="text-yellow-400 text-xs font-bold">₹{user.balance}</span>
+                </div>
+                <button onClick={handleLogout} className="text-white/30 hover:text-white/70 transition-colors p-1" title="Logout">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handleSecretClick}
               className="text-sm font-medium text-muted-foreground hover:text-white transition-colors"
@@ -98,11 +141,9 @@ export function Navbar() {
               Admin Access
             </DialogTitle>
           </DialogHeader>
-
           <div className="text-center mt-2">
             <Shield className="w-10 h-10 text-primary/60 mx-auto mb-3" />
             <p className="text-white/60 text-sm mb-5">Enter 4-digit PIN to continue</p>
-
             <div className="flex items-center justify-center gap-3 mb-4">
               {pin.map((digit, i) => (
                 <input
@@ -119,22 +160,19 @@ export function Navbar() {
                 />
               ))}
             </div>
-
             {pinError && (
               <p className="text-red-400 text-sm mb-3 font-semibold">Incorrect PIN. Try again.</p>
             )}
-
             <div className="flex gap-2 justify-center">
-              <Button variant="outline" size="sm" className="border-white/20 text-white" onClick={() => setPinOpen(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" className="bg-primary text-black font-bold" onClick={handleSubmitPin} disabled={pin.some(d => !d)}>
-                Enter
-              </Button>
+              <Button variant="outline" size="sm" className="border-white/20 text-white" onClick={() => setPinOpen(false)}>Cancel</Button>
+              <Button size="sm" className="bg-primary text-black font-bold" onClick={handleSubmitPin} disabled={pin.some(d => !d)}>Enter</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Betting Auth Modal */}
+      <BettingAuthModal open={bettingAuthOpen} onClose={() => setBettingAuthOpen(false)} />
     </>
   );
 }

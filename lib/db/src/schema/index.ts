@@ -24,3 +24,5 @@ export const teamsTable = pgTable("spl_teams", {
   totalPoints: integer("total_points").notNull().default(200),
   usedPoints: integer("used_points").notNull().default(0),
 });
+
+export * from "./betting";
