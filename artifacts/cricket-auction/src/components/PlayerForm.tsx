@@ -17,7 +17,7 @@ const playerSchema = z.object({
   village: z.string().min(2, "Village/City is required"),
   playerType: z.enum(["Batsman", "Bowler", "All-Rounder", "Wicket-Keeper"]),
   additionalTag: z.enum(["Normal Player", "Captain", "Vice Captain"]),
-  points: z.coerce.number().min(1, "Min 1 point").max(9999, "Max 9999"),
+  points: z.coerce.number().min(1, "Min 1 point").max(50000, "Max 50000"),
   teamId: z.string().nullable(),
 });
 
@@ -221,7 +221,7 @@ export function PlayerForm({ open, onOpenChange, playerToEdit }: PlayerFormProps
                   <span className="text-[10px] text-white/40 font-normal">(auction value)</span>
                 </FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={9999} className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
+                  <Input type="number" min={1} max={50000} className="bg-black/40 border-white/10 h-9 text-sm" {...field} />
                 </FormControl>
                 <FormMessage className="text-red-400 text-xs" />
               </FormItem>

@@ -16,7 +16,7 @@ const teamSchema = z.object({
   location: z.string().min(2, "Location is required"),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/i, "Must be a valid hex color"),
   description: z.string(),
-  totalPoints: z.coerce.number().min(1, "Min 1 point").max(99999),
+  totalPoints: z.coerce.number().min(1, "Min 1 point").max(600000),
 });
 
 type TeamFormValues = z.infer<typeof teamSchema>;
