@@ -1,44 +1,67 @@
-# [Project name]
+# Cricket Auction Tracker & Betting System
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full-stack Cricket Player Auction Tracker with a live betting platform where users can bet on matches using virtual balances.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/db run push` — push DB schema changes to Supabase
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
+- DB: PostgreSQL (Supabase) + Drizzle ORM
+- Storage: Supabase Storage
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
+## Database — IMPORTANT
+
+**This project always uses Supabase — never Replit's built-in database.**
+
+All credentials are hardcoded in `config.ts` at the root of the repo. Do NOT remove or replace these credentials with Replit's `DATABASE_URL` or any other env var. This rule applies in every environment (development, production) and on every Replit account this repo is cloned/forked to.
+
+- `config.ts` is the single source of truth for Supabase credentials.
+- `lib/db/src/index.ts` imports directly from `config.ts` — never from `process.env.DATABASE_URL`.
+- `lib/db/drizzle.config.ts` imports directly from `config.ts` — never from env vars.
+
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `config.ts` — Supabase credentials (URL, anon key, database URL) — **do not delete or modify**
+- `lib/db/src/schema/index.ts` — DB schema (players, teams)
+- `lib/db/src/schema/betting.ts` — Betting tables (users, matches, bets, transactions)
+- `artifacts/api-server/src/` — Express API routes
+- `artifacts/cricket-auction/src/` — React frontend
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Supabase PostgreSQL is hardcoded via `config.ts` — intentional, so the same DB is used regardless of Replit account or environment.
+- Session-based auth with bcryptjs + express-session (no external auth provider).
+- Admin credentials are hardcoded in `artifacts/api-server/src/routes/betting-auth.ts`.
+- API runs on port 8080; frontend Vite dev server on port 18246 and proxies `/api` to port 8080.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Cricket player auction management (add/manage players, teams, points)
+- Live betting on matches with virtual balance
+- Admin panel for managing transactions, matches, and users
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Always use Supabase for the database — never Replit built-in DB.
+- Supabase credentials must remain hardcoded in `config.ts` — do not move to env vars.
+- When cloning to any new Replit account, keep `config.ts` credentials as-is.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Always run `pnpm --filter @workspace/db run push` after schema changes to sync Supabase.
+- Do NOT run `pnpm --filter @workspace/db run push` against Replit DB — it uses `config.ts` which points to Supabase.
+- Never replace `config.ts` imports in `lib/db/` with `process.env.DATABASE_URL`.
 
 ## Pointers
 

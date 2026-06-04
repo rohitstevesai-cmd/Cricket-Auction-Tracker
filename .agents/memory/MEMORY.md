@@ -1,1 +1,2 @@
 - [Betting system architecture](betting-system.md) — session-based auth, 4 new DB tables, routes under /api/betting/*, admin creds hardcoded
+- [Supabase hardcoded config](supabase-config.md) — always use config.ts for DB; never Replit built-in DB or DATABASE_URL env var
