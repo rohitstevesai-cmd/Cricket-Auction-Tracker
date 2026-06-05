@@ -31,7 +31,7 @@ function BetStatusBadge({ bet }: { bet: Bet }) {
     );
   }
   if (bet.status === "lost") {
-    const winnerName = matchWinner === "team1" ? bet.matchTeam1 : matchWinner === "team2" ? bet.matchTeam2 : null;
+    const winnerName = !matchWinner || matchWinner === "draw" ? null : matchWinner === "team1" ? bet.matchTeam1 : matchWinner === "team2" ? bet.matchTeam2 : matchWinner;
     return (
       <div className="text-right">
         <div className="flex items-center justify-end gap-1.5 bg-red-500/15 border border-red-500/30 rounded-lg px-2.5 py-1.5">
