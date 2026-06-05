@@ -105,8 +105,8 @@ export function Navbar() {
               className="flex items-center gap-1.5 bg-yellow-400/10 border border-yellow-400/30 hover:bg-yellow-400/20 text-yellow-400 text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 rounded-lg transition-all active:scale-95"
             >
               <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Online Batting</span>
-              <span className="sm:hidden">Batting</span>
+              <span className="hidden sm:inline">Online Betting</span>
+              <span className="sm:hidden">Betting</span>
             </button>
 
             {/* User avatar / logout when logged in */}

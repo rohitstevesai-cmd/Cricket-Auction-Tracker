@@ -63,7 +63,7 @@ export default function BettingAdmin() {
       <Navbar />
       <main className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="font-heading text-3xl text-yellow-400 uppercase tracking-wider">Batting Admin</h1>
+          <h1 className="font-heading text-3xl text-yellow-400 uppercase tracking-wider">Betting Admin</h1>
           <div className="flex gap-2">
             <button onClick={fetchAll} className="text-white/30 hover:text-white"><RefreshCw className="w-5 h-5" /></button>
             <Button size="sm" variant="outline" onClick={logout} className="border-white/20 text-white/60 text-xs">Logout</Button>

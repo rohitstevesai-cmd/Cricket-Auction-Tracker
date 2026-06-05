@@ -47,7 +47,7 @@ export function BettingAuthModal({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle className="font-heading text-xl tracking-wide uppercase text-center flex items-center justify-center gap-2">
             <Zap className="w-5 h-5 text-yellow-400" />
-            <span className="text-yellow-400">Online Batting</span>
+            <span className="text-yellow-400">Online Betting</span>
           </DialogTitle>
         </DialogHeader>
 

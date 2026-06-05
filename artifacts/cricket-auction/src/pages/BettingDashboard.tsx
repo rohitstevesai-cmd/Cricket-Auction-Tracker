@@ -179,7 +179,7 @@ export default function BettingDashboard() {
             onClick={() => setActiveTab("betting")}
             className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-semibold transition-all ${activeTab === "betting" ? "bg-yellow-400 text-black" : "text-white/60 hover:text-white"}`}
           >
-            <Zap className="w-4 h-4" /> Online Batting
+            <Zap className="w-4 h-4" /> Online Betting
           </button>
           <button
             onClick={() => setActiveTab("profile")}
