@@ -1,6 +1,6 @@
 import { Player, Team } from "@/context/DataContext";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, MapPin, Star, Users, X } from "lucide-react";
+import { Calendar, MapPin, Star, Users } from "lucide-react";
 
 interface PlayerDetailModalProps {
   player: Player | null;
@@ -46,11 +46,8 @@ export function PlayerDetailModal({ player, team, open, onClose }: PlayerDetailM
         <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: accentColor }} />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-white/10 bg-black/40 flex-shrink-0">
           <span className="text-[11px] uppercase tracking-widest text-white/50 font-semibold">Player Profile</span>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Scrollable body */}

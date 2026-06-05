@@ -28,6 +28,7 @@ export interface Match {
   title: string;
   team1: string;
   team2: string;
+  teams: string[] | null;
   matchDate: string;
   status: "upcoming" | "live" | "completed" | "cancelled";
   winner: string | null;
@@ -39,7 +40,7 @@ export interface Match {
 export interface Bet {
   id: string;
   matchId: string;
-  betOn: "team1" | "team2";
+  betOn: string;
   amount: number;
   status: "pending" | "won" | "lost" | "refunded";
   payout: number;
@@ -47,6 +48,8 @@ export interface Bet {
   matchTitle?: string;
   matchTeam1?: string;
   matchTeam2?: string;
+  matchTeams?: string | null;
+  matchIsSpecial?: boolean;
   matchStatus?: string;
   matchWinner?: string | null;
 }

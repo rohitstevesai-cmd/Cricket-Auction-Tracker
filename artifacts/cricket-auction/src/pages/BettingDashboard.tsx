@@ -14,7 +14,7 @@ type Tab = "betting" | "profile";
 type ProfileTab = "wallet" | "history";
 
 function BetStatusBadge({ bet }: { bet: Bet }) {
-  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.matchTeam2;
+  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.betOn === "team2" ? bet.matchTeam2 : bet.betOn;
   const matchWinner = bet.matchWinner;
 
   if (bet.status === "won") {
@@ -217,10 +217,13 @@ export default function BettingDashboard() {
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1">
                         <p className="font-heading text-lg text-white tracking-wide">{match.title}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-white/80 text-sm font-semibold">{match.team1}</span>
-                          <span className="text-white/30 text-xs">vs</span>
-                          <span className="text-white/80 text-sm font-semibold">{match.team2}</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {(match.teams && match.teams.length > 2 ? match.teams : [match.team1, match.team2]).map((t, i, arr) => (
+                            <span key={t} className="flex items-center gap-1">
+                              <span className="text-white/80 text-sm font-semibold">{t}</span>
+                              {i < arr.length - 1 && <span className="text-white/30 text-xs">·</span>}
+                            </span>
+                          ))}
                         </div>
                         <div className="flex items-center gap-2 mt-2">
                           <Clock className="w-3 h-3 text-white/30" />
@@ -259,7 +262,7 @@ export default function BettingDashboard() {
             ) : (
               <div className="space-y-2">
                 {myBets.map(bet => {
-                  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.matchTeam2;
+                  const teamBetOn = bet.betOn === "team1" ? bet.matchTeam1 : bet.betOn === "team2" ? bet.matchTeam2 : bet.betOn;
                   const isSettled = bet.status === "won" || bet.status === "lost" || bet.status === "refunded";
                   return (
                     <div
@@ -300,10 +303,13 @@ export default function BettingDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-white/80 text-sm font-semibold">{match.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs font-semibold ${match.winner === "team1" ? "text-green-400" : "text-white/40"}`}>{match.team1}</span>
-                            <span className="text-white/20 text-xs">vs</span>
-                            <span className={`text-xs font-semibold ${match.winner === "team2" ? "text-green-400" : "text-white/40"}`}>{match.team2}</span>
+                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                            {(match.teams && match.teams.length > 2 ? match.teams : [match.team1, match.team2]).map((t, i, arr) => (
+                              <span key={t} className="flex items-center gap-1">
+                                <span className={`text-xs font-semibold ${match.winner === t || (t === match.team1 && match.winner === "team1") || (t === match.team2 && match.winner === "team2") ? "text-green-400" : "text-white/40"}`}>{t}</span>
+                                {i < arr.length - 1 && <span className="text-white/20 text-xs">·</span>}
+                              </span>
+                            ))}
                           </div>
                         </div>
                         {match.winner && (
@@ -315,7 +321,7 @@ export default function BettingDashboard() {
                                 <p className="text-xs text-white/30">Winner</p>
                                 <p className="text-green-400 text-sm font-bold flex items-center gap-1">
                                   <Trophy className="w-3 h-3" />
-                                  {match.winner === "team1" ? match.team1 : match.team2}
+                                  {match.winner === "team1" ? match.team1 : match.winner === "team2" ? match.team2 : match.winner}
                                 </p>
                               </div>
                             )}

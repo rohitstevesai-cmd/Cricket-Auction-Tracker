@@ -98,6 +98,10 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
                 <Input type="number" min="1" placeholder="Enter amount" value={amount} onChange={e => setAmount(e.target.value)} className="pl-9 bg-black/30 border-white/10 text-white focus-visible:ring-yellow-400" required />
               </div>
             </div>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-3 py-2.5 flex items-start gap-2">
+              <span className="text-green-400 text-lg leading-none mt-0.5">✓</span>
+              <p className="text-green-300 text-xs leading-relaxed">Your amount will be deposited within 10 minutes, don't worry!</p>
+            </div>
             <div>
               <Label className="text-white/70 text-xs uppercase tracking-wider mb-1 block">UTR Number</Label>
               <div className="relative">

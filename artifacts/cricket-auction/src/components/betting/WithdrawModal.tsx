@@ -57,6 +57,11 @@ export function WithdrawModal({ open, onClose, onSuccess, balance }: Props) {
           <p className="text-2xl font-heading text-yellow-400 font-bold">₹{balance.toLocaleString()}</p>
         </div>
 
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2.5 flex items-start gap-2 mb-2">
+          <span className="text-blue-400 text-lg leading-none mt-0.5">⏱</span>
+          <p className="text-blue-300 text-xs leading-relaxed">Your amount will be credited within 10 minutes after approval.</p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label className="text-white/70 text-xs uppercase tracking-wider mb-1 block">Amount (₹)</Label>

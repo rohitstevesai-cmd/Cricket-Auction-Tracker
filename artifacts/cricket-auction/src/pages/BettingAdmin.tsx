@@ -175,7 +175,7 @@ export default function BettingAdmin() {
                     <div className="flex-1">
                       {m.isSpecial && <div className="flex items-center gap-1 text-yellow-400 text-xs font-bold mb-1"><Star className="w-3 h-3 fill-yellow-400" /> SPECIAL</div>}
                       <p className="text-white font-semibold">{m.title}</p>
-                      <p className="text-white/60 text-sm">{m.team1} vs {m.team2}</p>
+                      <p className="text-white/60 text-sm">{m.teams && m.teams.length > 2 ? m.teams.join(" · ") : `${m.team1} vs ${m.team2}`}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-white/30 text-xs">{new Date(m.matchDate).toLocaleString()}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-bold uppercase ${
@@ -184,7 +184,7 @@ export default function BettingAdmin() {
                           "text-white/40 border-white/10 bg-white/5"
                         }`}>{m.status}</span>
                       </div>
-                      {m.winner && <p className="text-green-400 text-xs mt-1">Winner: {m.winner === "team1" ? m.team1 : m.winner === "team2" ? m.team2 : "Draw"}</p>}
+                      {m.winner && <p className="text-green-400 text-xs mt-1">Winner: {m.winner === "draw" ? "Draw" : m.winner === "team1" ? m.team1 : m.winner === "team2" ? m.team2 : m.winner}</p>}
                     </div>
                     <div className="flex gap-1 shrink-0">
                       {(m.status === "upcoming" || m.status === "live") && (
@@ -212,7 +212,7 @@ export default function BettingAdmin() {
             {bets.length === 0 ? (
               <div className="text-center py-12 text-white/40">No bets yet</div>
             ) : bets.map(b => {
-              const teamName = b.betOn === "team1" ? b.matchTeam1 : b.matchTeam2;
+              const teamName = b.betOn === "team1" ? b.matchTeam1 : b.betOn === "team2" ? b.matchTeam2 : b.betOn;
               const statusStyle =
                 b.status === "won" ? "bg-green-500/15 border-green-500/20" :
                 b.status === "lost" ? "bg-red-500/10 border-red-500/15" :
@@ -286,14 +286,21 @@ export default function BettingAdmin() {
   );
 }
 
+function getPayoutMultiplier(teamCount: number): number {
+  if (teamCount <= 2) return 1.9;
+  if (teamCount === 3) return 2.8;
+  return teamCount + 0.8;
+}
+
 function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; match: Match | null; onClose: () => void; onSaved: () => void }) {
-  const [title, setTitle] = useState(match?.title || "");
-  const [team1, setTeam1] = useState(match?.team1 || "");
-  const [team2, setTeam2] = useState(match?.team2 || "");
-  const [matchDate, setMatchDate] = useState(match?.matchDate ? match.matchDate.slice(0, 16) : "");
-  const [isSpecial, setIsSpecial] = useState(match?.isSpecial || false);
-  const [description, setDescription] = useState(match?.description || "");
-  const [status, setStatus] = useState(match?.status || "upcoming");
+  const [title, setTitle] = useState("");
+  const [team1, setTeam1] = useState("");
+  const [team2, setTeam2] = useState("");
+  const [specialTeams, setSpecialTeams] = useState<string[]>(["", ""]);
+  const [matchDate, setMatchDate] = useState("");
+  const [isSpecial, setIsSpecial] = useState(false);
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("upcoming");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -301,8 +308,10 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
       setTitle(match.title); setTeam1(match.team1); setTeam2(match.team2);
       setMatchDate(match.matchDate?.slice(0, 16) || "");
       setIsSpecial(match.isSpecial); setDescription(match.description); setStatus(match.status);
+      setSpecialTeams(match.teams && match.teams.length > 0 ? match.teams : [match.team1, match.team2]);
     } else {
       setTitle(""); setTeam1(""); setTeam2(""); setMatchDate(""); setIsSpecial(false); setDescription(""); setStatus("upcoming");
+      setSpecialTeams(["", ""]);
     }
   }, [match, open]);
 
@@ -310,29 +319,71 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
     e.preventDefault();
     setLoading(true);
     try {
+      const payload: any = { title, matchDate: new Date(matchDate).toISOString(), isSpecial, description };
+      if (isSpecial) {
+        const filtered = specialTeams.filter(t => t.trim());
+        if (filtered.length < 2) { toast.error("At least 2 teams required"); setLoading(false); return; }
+        payload.teams = filtered;
+        payload.team1 = filtered[0]; payload.team2 = filtered[1];
+      } else {
+        payload.team1 = team1; payload.team2 = team2;
+      }
       if (match) {
-        await bettingFetch(`/betting/admin/matches/${match.id}`, { method: "PUT", body: JSON.stringify({ title, team1, team2, matchDate: new Date(matchDate).toISOString(), isSpecial, description, status }) });
+        payload.status = status;
+        await bettingFetch(`/betting/admin/matches/${match.id}`, { method: "PUT", body: JSON.stringify(payload) });
         toast.success("Match updated!");
       } else {
-        await bettingFetch("/betting/admin/matches", { method: "POST", body: JSON.stringify({ title, team1, team2, matchDate: new Date(matchDate).toISOString(), isSpecial, description }) });
+        await bettingFetch("/betting/admin/matches", { method: "POST", body: JSON.stringify(payload) });
         toast.success("Match created!");
       }
       onSaved();
     } catch (err: any) { toast.error(err.message); } finally { setLoading(false); }
   };
 
+  const activeTeamCount = specialTeams.filter(t => t.trim()).length;
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white">
+      <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl text-yellow-400 uppercase">{match ? "Edit Match" : "Create Match"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 1</Label><Input value={team1} onChange={e => setTeam1(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
-            <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 2</Label><Input value={team2} onChange={e => setTeam2(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
+
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="special" checked={isSpecial} onChange={e => { setIsSpecial(e.target.checked); }} className="w-4 h-4 accent-yellow-400" />
+            <label htmlFor="special" className="text-white/70 text-sm">Special Match (Multiple Teams)</label>
           </div>
+
+          {isSpecial ? (
+            <div>
+              <Label className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Teams</Label>
+              {specialTeams.map((team, idx) => (
+                <div key={idx} className="flex gap-2 mb-2">
+                  <Input
+                    value={team}
+                    onChange={e => { const t = [...specialTeams]; t[idx] = e.target.value; setSpecialTeams(t); }}
+                    placeholder={`Team ${idx + 1}`}
+                    className="bg-black/30 border-white/10 text-white"
+                  />
+                  {specialTeams.length > 2 && (
+                    <button type="button" onClick={() => setSpecialTeams(specialTeams.filter((_, i) => i !== idx))} className="text-red-400/70 hover:text-red-400 px-2 text-xl font-bold">×</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setSpecialTeams([...specialTeams, ""])} className="text-yellow-400 text-xs font-bold hover:text-yellow-300">+ Add Team</button>
+              {activeTeamCount >= 2 && (
+                <p className="text-yellow-400/60 text-xs mt-1">Win payout: {getPayoutMultiplier(activeTeamCount)}x</p>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 1</Label><Input value={team1} onChange={e => setTeam1(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} /></div>
+              <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 2</Label><Input value={team2} onChange={e => setTeam2(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} /></div>
+            </div>
+          )}
+
           <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Match Date & Time</Label><Input type="datetime-local" value={matchDate} onChange={e => setMatchDate(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
           {match && (
             <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Status</Label>
@@ -342,10 +393,6 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
             </div>
           )}
           <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} className="bg-black/30 border-white/10 text-white" /></div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="special" checked={isSpecial} onChange={e => setIsSpecial(e.target.checked)} className="w-4 h-4 accent-yellow-400" />
-            <label htmlFor="special" className="text-white/70 text-sm">Special Match</label>
-          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1 border-white/20 text-white">Cancel</Button>
             <Button type="submit" disabled={loading} className="flex-1 bg-yellow-400 text-black font-bold">{loading ? "Saving…" : "Save"}</Button>
@@ -357,8 +404,14 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
 }
 
 function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: () => void; onDeclared: () => void }) {
-  const [winner, setWinner] = useState<"team1" | "team2" | "draw" | null>(null);
+  const [winner, setWinner] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const isSpecialMulti = match.isSpecial && match.teams && match.teams.length > 0;
+  const teamOptions: Array<{ key: string; label: string }> = isSpecialMulti
+    ? match.teams!.map(t => ({ key: t, label: t }))
+    : [{ key: "team1", label: match.team1 }, { key: "team2", label: match.team2 }];
+  const multiplier = getPayoutMultiplier(teamOptions.length);
 
   const handleDeclare = async () => {
     if (!winner) return;
@@ -372,44 +425,31 @@ function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: ()
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white">
+      <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl text-yellow-400 uppercase">Declare Match Result</DialogTitle>
         </DialogHeader>
         <p className="text-white/50 text-sm mb-1">{match.title}</p>
-        <p className="text-white/80 text-sm font-semibold mb-4">{match.team1} <span className="text-white/30 font-normal">vs</span> {match.team2}</p>
+        <p className="text-white/80 text-sm font-semibold mb-4">
+          {isSpecialMulti ? match.teams!.join(" · ") : `${match.team1} vs ${match.team2}`}
+        </p>
 
         <p className="text-white/40 text-xs uppercase tracking-wider mb-2 font-semibold">Select the winning team</p>
         <div className="space-y-2 mb-4">
-          {/* Team 1 WIN */}
-          <button
-            onClick={() => setWinner("team1")}
-            className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "team1" ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
-          >
-            <div className="text-left">
-              <p className={`text-sm font-bold ${winner === "team1" ? "text-green-400" : "text-white/80"}`}>{match.team1}</p>
-              <p className="text-white/30 text-xs">Bets on {match.team1} → WIN (2x payout)</p>
-            </div>
-            {winner === "team1" && (
-              <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>
-            )}
-          </button>
+          {teamOptions.map(team => (
+            <button
+              key={team.key}
+              onClick={() => setWinner(team.key)}
+              className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === team.key ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
+            >
+              <div className="text-left">
+                <p className={`text-sm font-bold ${winner === team.key ? "text-green-400" : "text-white/80"}`}>{team.label}</p>
+                <p className="text-white/30 text-xs">Bets on {team.label} → WIN ({multiplier}x payout)</p>
+              </div>
+              {winner === team.key && <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>}
+            </button>
+          ))}
 
-          {/* Team 2 WIN */}
-          <button
-            onClick={() => setWinner("team2")}
-            className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "team2" ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
-          >
-            <div className="text-left">
-              <p className={`text-sm font-bold ${winner === "team2" ? "text-green-400" : "text-white/80"}`}>{match.team2}</p>
-              <p className="text-white/30 text-xs">Bets on {match.team2} → WIN (2x payout)</p>
-            </div>
-            {winner === "team2" && (
-              <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>
-            )}
-          </button>
-
-          {/* Draw */}
           <button
             onClick={() => setWinner("draw")}
             className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === "draw" ? "border-blue-500 bg-blue-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
@@ -418,17 +458,15 @@ function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: ()
               <p className={`text-sm font-bold ${winner === "draw" ? "text-blue-400" : "text-white/80"}`}>Draw / No Result</p>
               <p className="text-white/30 text-xs">All bets refunded</p>
             </div>
-            {winner === "draw" && (
-              <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">DRAW</span>
-            )}
+            {winner === "draw" && <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">DRAW</span>}
           </button>
         </div>
 
         {winner && winner !== "draw" && (
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4 text-xs space-y-1">
             <p className="text-white/60 font-semibold uppercase tracking-wide">Result Summary</p>
-            <p className="text-green-400">✓ Bets on <strong>{winner === "team1" ? match.team1 : match.team2}</strong> → WIN (+2x)</p>
-            <p className="text-red-400">✗ Bets on <strong>{winner === "team1" ? match.team2 : match.team1}</strong> → LOSE</p>
+            <p className="text-green-400">✓ Bets on <strong>{teamOptions.find(t => t.key === winner)?.label ?? winner}</strong> → WIN (+{multiplier}x)</p>
+            <p className="text-red-400">✗ All other bets → LOSE</p>
           </div>
         )}
 

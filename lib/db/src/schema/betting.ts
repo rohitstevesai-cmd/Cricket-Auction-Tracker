@@ -30,9 +30,10 @@ export const matchesTable = pgTable("betting_matches", {
   team2: text("team2").notNull(),
   matchDate: timestamp("match_date", { mode: "string" }).notNull(),
   status: text("status").notNull().default("upcoming"), // "upcoming" | "live" | "completed" | "cancelled"
-  winner: text("winner"), // "team1" | "team2" | "draw" | null
+  winner: text("winner"), // "team1" | "team2" | "draw" | teamName for special | null
   isSpecial: boolean("is_special").notNull().default(false),
   description: text("description").notNull().default(""),
+  teams: text("teams"), // JSON array of team names for special matches e.g. '["MI","CSK","RCB"]'
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
 });
 

@@ -15,10 +15,26 @@ interface Props {
   balance: number;
 }
 
+function getPayoutMultiplier(teamCount: number): number {
+  if (teamCount <= 2) return 1.9;
+  if (teamCount === 3) return 2.8;
+  return teamCount + 0.8;
+}
+
 export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Props) {
-  const [betOn, setBetOn] = useState<"team1" | "team2" | null>(null);
+  const [betOn, setBetOn] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const isSpecialMulti = match.isSpecial && match.teams && match.teams.length > 0;
+  const teams: Array<{ key: string; label: string }> = isSpecialMulti
+    ? match.teams!.map(t => ({ key: t, label: t }))
+    : [
+        { key: "team1", label: match.team1 },
+        { key: "team2", label: match.team2 },
+      ];
+  const teamCount = isSpecialMulti ? match.teams!.length : 2;
+  const multiplier = getPayoutMultiplier(teamCount);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +48,8 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
         method: "POST",
         body: JSON.stringify({ matchId: match.id, betOn, amount: amt }),
       });
-      toast.success(`Bet placed on ${betOn === "team1" ? match.team1 : match.team2}!`);
+      const label = teams.find(t => t.key === betOn)?.label ?? betOn;
+      toast.success(`Bet placed on ${label}!`);
       setBetOn(null); setAmount("");
       onSuccess();
       onClose();
@@ -43,8 +60,10 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
     }
   };
 
+  const handleClose = () => { setBetOn(null); setAmount(""); onClose(); };
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setBetOn(null); setAmount(""); onClose(); } }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-sm bg-[#0d1425] border-white/10 text-white">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl tracking-wide uppercase text-center text-yellow-400 flex items-center justify-center gap-2">
@@ -60,6 +79,7 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
           )}
           <p className="font-heading text-white text-lg">{match.title}</p>
           <p className="text-white/50 text-sm">{new Date(match.matchDate).toLocaleString()}</p>
+          <p className="text-yellow-400/70 text-xs mt-1 font-semibold">Win multiplier: {multiplier}x</p>
         </div>
 
         <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3 text-center mb-4">
@@ -70,21 +90,17 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label className="text-white/70 text-xs uppercase tracking-wider mb-2 block">Choose a Team</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setBetOn("team1")}
-                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${betOn === "team1" ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"}`}
-              >
-                {match.team1}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBetOn("team2")}
-                className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${betOn === "team2" ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"}`}
-              >
-                {match.team2}
-              </button>
+            <div className={`grid gap-2 ${teams.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+              {teams.map(team => (
+                <button
+                  key={team.key}
+                  type="button"
+                  onClick={() => setBetOn(team.key)}
+                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-left ${betOn === team.key ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"}`}
+                >
+                  {team.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -104,7 +120,9 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
               />
             </div>
             {amount && Number(amount) >= 10 && (
-              <p className="text-white/40 text-xs mt-1">Potential win: ₹{(Number(amount) * 2).toLocaleString()} (2x)</p>
+              <p className="text-white/40 text-xs mt-1">
+                Potential win: ₹{Math.round(Number(amount) * multiplier).toLocaleString()} ({multiplier}x)
+              </p>
             )}
             <p className="text-white/30 text-xs mt-1">⚠️ Bets cannot be cancelled once placed</p>
           </div>
@@ -114,7 +132,7 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
             disabled={loading || !betOn}
             className="w-full bg-yellow-400 text-black font-bold hover:bg-yellow-300"
           >
-            {loading ? "Placing Bet…" : `Bet on ${betOn ? (betOn === "team1" ? match.team1 : match.team2) : "…"}`}
+            {loading ? "Placing Bet…" : `Bet on ${betOn ? (teams.find(t => t.key === betOn)?.label ?? betOn) : "…"}`}
           </Button>
         </form>
       </DialogContent>
