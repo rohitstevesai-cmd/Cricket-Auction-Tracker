@@ -6,12 +6,11 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, RefreshCw, Trophy, IndianRupee, Users, Ticket, CheckCircle, XCircle, Star, Edit2, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Trophy, IndianRupee, CheckCircle, XCircle, Star, Edit2, Trash2, Upload, Loader2, QrCode } from "lucide-react";
 
-type AdminTab = "transactions" | "users" | "matches" | "bets";
+type AdminTab = "transactions" | "users" | "matches" | "bets" | "settings";
 
 export default function BettingAdmin() {
   const { logout, isAdmin, loading } = useBetting();
@@ -21,10 +20,13 @@ export default function BettingAdmin() {
   useEffect(() => {
     if (!loading && !isAdmin) setLocation("/");
   }, [isAdmin, loading, setLocation]);
+
   const [transactions, setTransactions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [bets, setBets] = useState<any[]>([]);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrUploading, setQrUploading] = useState(false);
 
   const [createMatchOpen, setCreateMatchOpen] = useState(false);
   const [editMatch, setEditMatch] = useState<Match | null>(null);
@@ -41,10 +43,31 @@ export default function BettingAdmin() {
         bettingFetch("/betting/admin/bets"),
       ]);
       setTransactions(t); setUsers(u); setMatches(m); setBets(b);
+      const s = await fetch("/api/betting/settings", { credentials: "include" }).then(r => r.json()).catch(() => ({}));
+      setQrUrl(s.qrCode || null);
     } catch (err: any) { toast.error(err.message || "Failed to load data"); }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setQrUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload?folder=settings", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      await bettingFetch("/betting/admin/settings", { method: "PUT", body: JSON.stringify({ key: "qrCode", value: url }) });
+      setQrUrl(url);
+      toast.success("QR code updated successfully!");
+    } catch (err: any) { toast.error(err.message || "Failed to upload QR"); } finally {
+      setQrUploading(false);
+      e.target.value = "";
+    }
+  };
 
   const txnStatusColor = (s: string) => {
     if (s === "approved") return "text-green-400";
@@ -87,7 +110,7 @@ export default function BettingAdmin() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-white/5 border border-white/10 rounded-lg p-1 mb-6 overflow-x-auto">
-          {(["transactions", "users", "matches", "bets"] as AdminTab[]).map(tab => (
+          {(["transactions", "users", "matches", "bets", "settings"] as AdminTab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -184,6 +207,11 @@ export default function BettingAdmin() {
                           "text-white/40 border-white/10 bg-white/5"
                         }`}>{m.status}</span>
                       </div>
+                      {m.teamPayouts && (
+                        <p className="text-yellow-400/50 text-xs mt-0.5">
+                          Payouts: {Object.entries(m.teamPayouts).map(([k, v]) => `${k}→${v}x`).join(", ")}
+                        </p>
+                      )}
                       {m.winner && <p className="text-green-400 text-xs mt-1">Winner: {m.winner === "draw" ? "Draw" : m.winner === "team1" ? m.team1 : m.winner === "team2" ? m.team2 : m.winner}</p>}
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -244,11 +272,64 @@ export default function BettingAdmin() {
             })}
           </div>
         )}
+
+        {/* SETTINGS */}
+        {activeTab === "settings" && (
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+              <h3 className="text-white font-heading text-lg uppercase mb-1 flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-yellow-400" /> Payment QR Code
+              </h3>
+              <p className="text-white/40 text-xs mb-5">This QR will be shown to users when they click "Add Money". Upload or replace it anytime.</p>
+
+              <div className="bg-white rounded-xl p-4 mx-auto w-fit mb-4">
+                {qrUrl ? (
+                  <img src={qrUrl} alt="Payment QR" className="w-52 h-52 object-contain" />
+                ) : (
+                  <div className="w-52 h-52 flex flex-col items-center justify-center text-gray-400 gap-3">
+                    <QrCode className="w-20 h-20" />
+                    <p className="text-sm text-center">No QR code set</p>
+                  </div>
+                )}
+              </div>
+
+              <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl p-5 transition-colors ${qrUploading ? "border-yellow-400/30 cursor-not-allowed" : "border-white/20 cursor-pointer hover:border-yellow-400/50"}`}>
+                {qrUploading ? (
+                  <div className="flex items-center gap-2 text-yellow-400">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Uploading QR code…</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-7 h-7 text-white/30 mb-2" />
+                    <span className="text-white/60 text-sm font-semibold">{qrUrl ? "Click to replace QR code" : "Click to upload QR code"}</span>
+                    <span className="text-white/30 text-xs mt-1">PNG, JPG, SVG — any image format</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} disabled={qrUploading} />
+              </label>
+
+              {qrUrl && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await bettingFetch("/betting/admin/settings", { method: "PUT", body: JSON.stringify({ key: "qrCode", value: null }) });
+                      setQrUrl(null);
+                      toast.success("QR code removed");
+                    } catch (err: any) { toast.error(err.message); }
+                  }}
+                  className="mt-3 w-full text-red-400/60 hover:text-red-400 text-xs py-2 transition-colors"
+                >
+                  Remove QR code
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       <Footer />
 
-      {/* Create / Edit Match Modal */}
       <MatchFormModal
         open={createMatchOpen || !!editMatch}
         match={editMatch}
@@ -256,7 +337,6 @@ export default function BettingAdmin() {
         onSaved={() => { setCreateMatchOpen(false); setEditMatch(null); fetchAll(); }}
       />
 
-      {/* Declare Winner Modal */}
       {winnerModal && (
         <WinnerModal
           match={winnerModal}
@@ -265,7 +345,6 @@ export default function BettingAdmin() {
         />
       )}
 
-      {/* Edit Balance Modal */}
       {editBalanceUser && (
         <EditBalanceModal
           user={editBalanceUser}
@@ -274,7 +353,6 @@ export default function BettingAdmin() {
         />
       )}
 
-      {/* Approve/Reject Transaction Modal */}
       {approveTxn && (
         <ApproveTxnModal
           txn={approveTxn}
@@ -286,7 +364,7 @@ export default function BettingAdmin() {
   );
 }
 
-function getPayoutMultiplier(teamCount: number): number {
+function getDefaultMultiplier(teamCount: number): number {
   if (teamCount <= 2) return 1.9;
   if (teamCount === 3) return 2.8;
   return teamCount + 0.8;
@@ -296,7 +374,10 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
   const [title, setTitle] = useState("");
   const [team1, setTeam1] = useState("");
   const [team2, setTeam2] = useState("");
+  const [payout1, setPayout1] = useState<string>("");
+  const [payout2, setPayout2] = useState<string>("");
   const [specialTeams, setSpecialTeams] = useState<string[]>(["", ""]);
+  const [specialPayouts, setSpecialPayouts] = useState<string[]>(["", ""]);
   const [matchDate, setMatchDate] = useState("");
   const [isSpecial, setIsSpecial] = useState(false);
   const [description, setDescription] = useState("");
@@ -308,10 +389,19 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
       setTitle(match.title); setTeam1(match.team1); setTeam2(match.team2);
       setMatchDate(match.matchDate?.slice(0, 16) || "");
       setIsSpecial(match.isSpecial); setDescription(match.description); setStatus(match.status);
-      setSpecialTeams(match.teams && match.teams.length > 0 ? match.teams : [match.team1, match.team2]);
+      const teamsList = match.teams && match.teams.length > 0 ? match.teams : [match.team1, match.team2];
+      setSpecialTeams(teamsList);
+      if (match.teamPayouts) {
+        setPayout1(String(match.teamPayouts["team1"] ?? ""));
+        setPayout2(String(match.teamPayouts["team2"] ?? ""));
+        setSpecialPayouts(teamsList.map(t => String(match.teamPayouts?.[t] ?? "")));
+      } else {
+        setPayout1(""); setPayout2("");
+        setSpecialPayouts(teamsList.map(() => ""));
+      }
     } else {
       setTitle(""); setTeam1(""); setTeam2(""); setMatchDate(""); setIsSpecial(false); setDescription(""); setStatus("upcoming");
-      setSpecialTeams(["", ""]);
+      setSpecialTeams(["", ""]); setSpecialPayouts(["", ""]); setPayout1(""); setPayout2("");
     }
   }, [match, open]);
 
@@ -320,14 +410,24 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
     setLoading(true);
     try {
       const payload: any = { title, matchDate: new Date(matchDate).toISOString(), isSpecial, description };
+      const teamPayouts: Record<string, number> = {};
+
       if (isSpecial) {
-        const filtered = specialTeams.filter(t => t.trim());
+        const filtered = specialTeams.map((t, i) => ({ name: t.trim(), payout: specialPayouts[i] })).filter(x => x.name);
         if (filtered.length < 2) { toast.error("At least 2 teams required"); setLoading(false); return; }
-        payload.teams = filtered;
-        payload.team1 = filtered[0]; payload.team2 = filtered[1];
+        payload.teams = filtered.map(x => x.name);
+        payload.team1 = filtered[0].name; payload.team2 = filtered[1].name;
+        filtered.forEach(({ name, payout }) => {
+          if (payout && !isNaN(Number(payout))) teamPayouts[name] = Number(payout);
+        });
       } else {
         payload.team1 = team1; payload.team2 = team2;
+        if (payout1 && !isNaN(Number(payout1))) teamPayouts["team1"] = Number(payout1);
+        if (payout2 && !isNaN(Number(payout2))) teamPayouts["team2"] = Number(payout2);
       }
+
+      payload.teamPayouts = Object.keys(teamPayouts).length > 0 ? teamPayouts : null;
+
       if (match) {
         payload.status = status;
         await bettingFetch(`/betting/admin/matches/${match.id}`, { method: "PUT", body: JSON.stringify(payload) });
@@ -340,7 +440,7 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
     } catch (err: any) { toast.error(err.message); } finally { setLoading(false); }
   };
 
-  const activeTeamCount = specialTeams.filter(t => t.trim()).length;
+  const activeTeamCount = isSpecial ? specialTeams.filter(t => t.trim()).length : 2;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -349,50 +449,97 @@ function MatchFormModal({ open, match, onClose, onSaved }: { open: boolean; matc
           <DialogTitle className="font-heading text-xl text-yellow-400 uppercase">{match ? "Edit Match" : "Create Match"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
+          <div>
+            <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Title</Label>
+            <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-black/30 border-white/10 text-white" required />
+          </div>
 
           <div className="flex items-center gap-2">
-            <input type="checkbox" id="special" checked={isSpecial} onChange={e => { setIsSpecial(e.target.checked); }} className="w-4 h-4 accent-yellow-400" />
+            <input type="checkbox" id="special" checked={isSpecial} onChange={e => setIsSpecial(e.target.checked)} className="w-4 h-4 accent-yellow-400" />
             <label htmlFor="special" className="text-white/70 text-sm">Special Match (Multiple Teams)</label>
           </div>
 
           {isSpecial ? (
             <div>
-              <Label className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Teams</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-white/60 text-xs uppercase tracking-wider">Teams & Payout Multiplier</Label>
+              </div>
               {specialTeams.map((team, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
+                <div key={idx} className="flex gap-2 mb-2 items-center">
                   <Input
                     value={team}
                     onChange={e => { const t = [...specialTeams]; t[idx] = e.target.value; setSpecialTeams(t); }}
-                    placeholder={`Team ${idx + 1}`}
-                    className="bg-black/30 border-white/10 text-white"
+                    placeholder={`Team ${idx + 1} name`}
+                    className="bg-black/30 border-white/10 text-white flex-1"
                   />
+                  <div className="relative w-24 shrink-0">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      value={specialPayouts[idx]}
+                      onChange={e => { const p = [...specialPayouts]; p[idx] = e.target.value; setSpecialPayouts(p); }}
+                      placeholder={`${getDefaultMultiplier(activeTeamCount)}x`}
+                      className="bg-black/30 border-white/10 text-white pr-5"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 text-xs">x</span>
+                  </div>
                   {specialTeams.length > 2 && (
-                    <button type="button" onClick={() => setSpecialTeams(specialTeams.filter((_, i) => i !== idx))} className="text-red-400/70 hover:text-red-400 px-2 text-xl font-bold">×</button>
+                    <button type="button" onClick={() => { setSpecialTeams(specialTeams.filter((_, i) => i !== idx)); setSpecialPayouts(specialPayouts.filter((_, i) => i !== idx)); }} className="text-red-400/70 hover:text-red-400 text-xl font-bold shrink-0">×</button>
                   )}
                 </div>
               ))}
-              <button type="button" onClick={() => setSpecialTeams([...specialTeams, ""])} className="text-yellow-400 text-xs font-bold hover:text-yellow-300">+ Add Team</button>
-              {activeTeamCount >= 2 && (
-                <p className="text-yellow-400/60 text-xs mt-1">Win payout: {getPayoutMultiplier(activeTeamCount)}x</p>
-              )}
+              <button type="button" onClick={() => { setSpecialTeams([...specialTeams, ""]); setSpecialPayouts([...specialPayouts, ""]); }} className="text-yellow-400 text-xs font-bold hover:text-yellow-300">+ Add Team</button>
+              <p className="text-white/30 text-xs mt-1">Leave multiplier blank to use default ({getDefaultMultiplier(activeTeamCount)}x)</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 1</Label><Input value={team1} onChange={e => setTeam1(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} /></div>
-              <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 2</Label><Input value={team2} onChange={e => setTeam2(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} /></div>
+            <div className="space-y-2">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 1</Label>
+                  <Input value={team1} onChange={e => setTeam1(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} />
+                </div>
+                <div className="w-24 shrink-0">
+                  <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Payout</Label>
+                  <div className="relative">
+                    <Input type="number" step="0.1" min="1" value={payout1} onChange={e => setPayout1(e.target.value)} placeholder="1.9x" className="bg-black/30 border-white/10 text-white pr-5" />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 text-xs">x</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Team 2</Label>
+                  <Input value={team2} onChange={e => setTeam2(e.target.value)} className="bg-black/30 border-white/10 text-white" required={!isSpecial} />
+                </div>
+                <div className="w-24 shrink-0">
+                  <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Payout</Label>
+                  <div className="relative">
+                    <Input type="number" step="0.1" min="1" value={payout2} onChange={e => setPayout2(e.target.value)} placeholder="1.9x" className="bg-black/30 border-white/10 text-white pr-5" />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 text-xs">x</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-white/30 text-xs">Leave multiplier blank to use default (1.9x)</p>
             </div>
           )}
 
-          <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Match Date & Time</Label><Input type="datetime-local" value={matchDate} onChange={e => setMatchDate(e.target.value)} className="bg-black/30 border-white/10 text-white" required /></div>
+          <div>
+            <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Match Date & Time</Label>
+            <Input type="datetime-local" value={matchDate} onChange={e => setMatchDate(e.target.value)} className="bg-black/30 border-white/10 text-white" required />
+          </div>
           {match && (
-            <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Status</Label>
+            <div>
+              <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Status</Label>
               <select value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-black/30 border border-white/10 text-white rounded-md px-3 py-2 text-sm">
                 <option value="upcoming">Upcoming</option><option value="live">Live</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option>
               </select>
             </div>
           )}
-          <div><Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Description</Label><Input value={description} onChange={e => setDescription(e.target.value)} className="bg-black/30 border-white/10 text-white" /></div>
+          <div>
+            <Label className="text-white/60 text-xs uppercase tracking-wider mb-1 block">Description</Label>
+            <Input value={description} onChange={e => setDescription(e.target.value)} className="bg-black/30 border-white/10 text-white" />
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1 border-white/20 text-white">Cancel</Button>
             <Button type="submit" disabled={loading} className="flex-1 bg-yellow-400 text-black font-bold">{loading ? "Saving…" : "Save"}</Button>
@@ -411,7 +558,9 @@ function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: ()
   const teamOptions: Array<{ key: string; label: string }> = isSpecialMulti
     ? match.teams!.map(t => ({ key: t, label: t }))
     : [{ key: "team1", label: match.team1 }, { key: "team2", label: match.team2 }];
-  const multiplier = getPayoutMultiplier(teamOptions.length);
+
+  const getTeamMultiplier = (key: string): number =>
+    match.teamPayouts?.[key] ?? getDefaultMultiplier(teamOptions.length);
 
   const handleDeclare = async () => {
     if (!winner) return;
@@ -436,19 +585,22 @@ function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: ()
 
         <p className="text-white/40 text-xs uppercase tracking-wider mb-2 font-semibold">Select the winning team</p>
         <div className="space-y-2 mb-4">
-          {teamOptions.map(team => (
-            <button
-              key={team.key}
-              onClick={() => setWinner(team.key)}
-              className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === team.key ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
-            >
-              <div className="text-left">
-                <p className={`text-sm font-bold ${winner === team.key ? "text-green-400" : "text-white/80"}`}>{team.label}</p>
-                <p className="text-white/30 text-xs">Bets on {team.label} → WIN ({multiplier}x payout)</p>
-              </div>
-              {winner === team.key && <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>}
-            </button>
-          ))}
+          {teamOptions.map(team => {
+            const mult = getTeamMultiplier(team.key);
+            return (
+              <button
+                key={team.key}
+                onClick={() => setWinner(team.key)}
+                className={`w-full p-3 rounded-xl border-2 transition-all flex items-center justify-between ${winner === team.key ? "border-green-500 bg-green-500/15" : "border-white/10 bg-white/5 hover:border-white/20"}`}
+              >
+                <div className="text-left">
+                  <p className={`text-sm font-bold ${winner === team.key ? "text-green-400" : "text-white/80"}`}>{team.label}</p>
+                  <p className="text-white/30 text-xs">Bets on {team.label} → WIN ({mult}x payout)</p>
+                </div>
+                {winner === team.key && <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">WIN</span>}
+              </button>
+            );
+          })}
 
           <button
             onClick={() => setWinner("draw")}
@@ -465,7 +617,7 @@ function WinnerModal({ match, onClose, onDeclared }: { match: Match; onClose: ()
         {winner && winner !== "draw" && (
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4 text-xs space-y-1">
             <p className="text-white/60 font-semibold uppercase tracking-wide">Result Summary</p>
-            <p className="text-green-400">✓ Bets on <strong>{teamOptions.find(t => t.key === winner)?.label ?? winner}</strong> → WIN (+{multiplier}x)</p>
+            <p className="text-green-400">✓ Bets on <strong>{teamOptions.find(t => t.key === winner)?.label ?? winner}</strong> → WIN (+{getTeamMultiplier(winner)}x)</p>
             <p className="text-red-400">✗ All other bets → LOSE</p>
           </div>
         )}

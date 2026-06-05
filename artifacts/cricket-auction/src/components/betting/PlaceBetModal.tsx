@@ -15,7 +15,7 @@ interface Props {
   balance: number;
 }
 
-function getPayoutMultiplier(teamCount: number): number {
+function getDefaultMultiplier(teamCount: number): number {
   if (teamCount <= 2) return 1.9;
   if (teamCount === 3) return 2.8;
   return teamCount + 0.8;
@@ -34,7 +34,11 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
         { key: "team2", label: match.team2 },
       ];
   const teamCount = isSpecialMulti ? match.teams!.length : 2;
-  const multiplier = getPayoutMultiplier(teamCount);
+
+  const getTeamMultiplier = (key: string): number =>
+    match.teamPayouts?.[key] ?? getDefaultMultiplier(teamCount);
+
+  const selectedMultiplier = betOn ? getTeamMultiplier(betOn) : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +83,6 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
           )}
           <p className="font-heading text-white text-lg">{match.title}</p>
           <p className="text-white/50 text-sm">{new Date(match.matchDate).toLocaleString()}</p>
-          <p className="text-yellow-400/70 text-xs mt-1 font-semibold">Win multiplier: {multiplier}x</p>
         </div>
 
         <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl p-3 text-center mb-4">
@@ -91,16 +94,22 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
           <div>
             <Label className="text-white/70 text-xs uppercase tracking-wider mb-2 block">Choose a Team</Label>
             <div className={`grid gap-2 ${teams.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-              {teams.map(team => (
-                <button
-                  key={team.key}
-                  type="button"
-                  onClick={() => setBetOn(team.key)}
-                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-left ${betOn === team.key ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"}`}
-                >
-                  {team.label}
-                </button>
-              ))}
+              {teams.map(team => {
+                const mult = getTeamMultiplier(team.key);
+                return (
+                  <button
+                    key={team.key}
+                    type="button"
+                    onClick={() => setBetOn(team.key)}
+                    className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-left ${betOn === team.key ? "border-yellow-400 bg-yellow-400/20 text-yellow-400" : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"}`}
+                  >
+                    <p>{team.label}</p>
+                    <p className={`text-xs font-semibold mt-0.5 ${betOn === team.key ? "text-yellow-300" : "text-white/40"}`}>
+                      Win: {mult}x
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -119,9 +128,9 @@ export function PlaceBetModal({ open, match, onClose, onSuccess, balance }: Prop
                 required
               />
             </div>
-            {amount && Number(amount) >= 10 && (
+            {amount && Number(amount) >= 10 && selectedMultiplier && (
               <p className="text-white/40 text-xs mt-1">
-                Potential win: ₹{Math.round(Number(amount) * multiplier).toLocaleString()} ({multiplier}x)
+                Potential win: ₹{Math.round(Number(amount) * selectedMultiplier).toLocaleString()} ({selectedMultiplier}x)
               </p>
             )}
             <p className="text-white/30 text-xs mt-1">⚠️ Bets cannot be cancelled once placed</p>

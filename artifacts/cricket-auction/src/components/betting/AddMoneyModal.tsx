@@ -1,19 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { bettingFetch } from "@/context/BettingContext";
 import { toast } from "sonner";
-import { Upload, IndianRupee, Hash, Loader2, CheckCircle2 } from "lucide-react";
+import { Upload, IndianRupee, Hash, Loader2, CheckCircle2, QrCode } from "lucide-react";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const QR_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia.svg/320px-QR_code_for_mobile_English_Wikipedia.svg.png";
 
 export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
   const [step, setStep] = useState<"qr" | "details">("qr");
@@ -22,6 +20,18 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    setQrLoading(true);
+    fetch("/api/betting/settings", { credentials: "include" })
+      .then(r => r.json())
+      .then(data => { setQrUrl(data.qrCode || null); })
+      .catch(() => setQrUrl(null))
+      .finally(() => setQrLoading(false));
+  }, [open]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,8 +91,17 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
         {step === "qr" ? (
           <div className="text-center space-y-4">
             <p className="text-white/60 text-sm">Scan the QR code and make your payment</p>
-            <div className="bg-white rounded-xl p-4 mx-auto w-fit">
-              <img src={QR_IMAGE} alt="Payment QR" className="w-48 h-48 object-contain" />
+            <div className="bg-white rounded-xl p-4 mx-auto w-fit min-h-[200px] flex items-center justify-center">
+              {qrLoading ? (
+                <Loader2 className="w-10 h-10 text-gray-400 animate-spin" />
+              ) : qrUrl ? (
+                <img src={qrUrl} alt="Payment QR" className="w-48 h-48 object-contain" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-gray-400 w-48 h-48 justify-center">
+                  <QrCode className="w-16 h-16" />
+                  <p className="text-xs text-center">QR code not set yet.<br />Contact admin.</p>
+                </div>
+              )}
             </div>
             <p className="text-white/40 text-xs">After payment, click Continue to submit your UTR</p>
             <Button onClick={() => setStep("details")} className="w-full bg-yellow-400 text-black font-bold hover:bg-yellow-300">
@@ -132,9 +151,7 @@ export function AddMoneyModal({ open, onClose, onSuccess }: Props) {
               </label>
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep("qr")} className="flex-1 border-white/20 text-white">
-                Back
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setStep("qr")} className="flex-1 border-white/20 text-white">Back</Button>
               <Button type="submit" disabled={loading || uploading} className="flex-1 bg-yellow-400 text-black font-bold hover:bg-yellow-300">
                 {loading ? "Submitting…" : "Submit Request"}
               </Button>

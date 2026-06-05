@@ -12,9 +12,9 @@ export const bettingUsersTable = pgTable("betting_users", {
 export const transactionsTable = pgTable("betting_transactions", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => bettingUsersTable.id),
-  type: text("type").notNull(), // "add" | "withdraw"
+  type: text("type").notNull(),
   amount: integer("amount").notNull(),
-  status: text("status").notNull().default("pending"), // "pending" | "approved" | "cancelled"
+  status: text("status").notNull().default("pending"),
   utrNo: text("utr_no"),
   imageUrl: text("image_url"),
   note: text("note"),
@@ -29,11 +29,12 @@ export const matchesTable = pgTable("betting_matches", {
   team1: text("team1").notNull(),
   team2: text("team2").notNull(),
   matchDate: timestamp("match_date", { mode: "string" }).notNull(),
-  status: text("status").notNull().default("upcoming"), // "upcoming" | "live" | "completed" | "cancelled"
-  winner: text("winner"), // "team1" | "team2" | "draw" | teamName for special | null
+  status: text("status").notNull().default("upcoming"),
+  winner: text("winner"),
   isSpecial: boolean("is_special").notNull().default(false),
   description: text("description").notNull().default(""),
-  teams: text("teams"), // JSON array of team names for special matches e.g. '["MI","CSK","RCB"]'
+  teams: text("teams"),
+  teamPayouts: text("team_payouts"),
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
 });
 
@@ -41,9 +42,15 @@ export const betsTable = pgTable("betting_bets", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => bettingUsersTable.id),
   matchId: text("match_id").notNull().references(() => matchesTable.id),
-  betOn: text("bet_on").notNull(), // "team1" | "team2"
+  betOn: text("bet_on").notNull(),
   amount: integer("amount").notNull(),
-  status: text("status").notNull().default("pending"), // "pending" | "won" | "lost" | "refunded"
+  status: text("status").notNull().default("pending"),
   payout: integer("payout").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
+});
+
+export const bettingSettingsTable = pgTable("betting_settings", {
+  key: text("key").primaryKey(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
 });

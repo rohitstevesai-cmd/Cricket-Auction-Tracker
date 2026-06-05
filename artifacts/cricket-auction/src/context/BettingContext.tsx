@@ -29,6 +29,7 @@ export interface Match {
   team1: string;
   team2: string;
   teams: string[] | null;
+  teamPayouts: Record<string, number> | null;
   matchDate: string;
   status: "upcoming" | "live" | "completed" | "cancelled";
   winner: string | null;
