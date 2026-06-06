@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
 
 export type PlayerType = "Batsman" | "Bowler" | "All-Rounder" | "Wicket-Keeper";
 export type AdditionalTag = "Normal Player" | "Captain" | "Vice Captain";
@@ -33,6 +33,7 @@ interface DataContextType {
   players: Player[];
   teams: Team[];
   loading: boolean;
+  lastUpdated: Date | null;
   refresh: () => Promise<void>;
   addPlayer: (player: Omit<Player, "id" | "createdAt">) => Promise<void>;
   editPlayer: (id: string, player: Partial<Player>) => Promise<void>;
@@ -60,10 +61,14 @@ async function apiFetch(path: string, options?: RequestInit) {
   return res.json();
 }
 
+const POLL_INTERVAL_MS = 8000;
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -73,14 +78,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       setPlayers(p);
       setTeams(t);
+      setLastUpdated(new Date());
     } catch (e) {
       console.error("Failed to load data", e);
     }
   }, []);
 
+  const startPolling = useCallback(() => {
+    if (timerRef.current) return;
+    timerRef.current = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    }, POLL_INTERVAL_MS);
+  }, [refresh]);
+
+  const stopPolling = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     refresh().finally(() => setLoading(false));
-  }, [refresh]);
+    startPolling();
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refresh, startPolling, stopPolling]);
 
   const addPlayer = async (player: Omit<Player, "id" | "createdAt">) => {
     await apiFetch("/players", { method: "POST", body: JSON.stringify(player) });
@@ -140,7 +178,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      players, teams, loading, refresh,
+      players, teams, loading, lastUpdated, refresh,
       addPlayer, editPlayer, deletePlayer,
       addTeam, editTeam, deleteTeam,
       assignPlayerToTeam, removePlayerFromTeam,

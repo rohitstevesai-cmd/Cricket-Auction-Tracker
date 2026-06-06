@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -35,8 +35,22 @@ function getTypeColor(type: Player["playerType"]) {
 }
 
 export default function PublicDashboard() {
-  const { players, teams } = useData();
+  const { players, teams, lastUpdated } = useData();
   const [, setLocation] = useLocation();
+  const [timeAgo, setTimeAgo] = useState<string>("");
+
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const update = () => {
+      const sec = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+      if (sec < 5) setTimeAgo("just now");
+      else if (sec < 60) setTimeAgo(`${sec}s ago`);
+      else setTimeAgo(`${Math.floor(sec / 60)}m ago`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
 
   const [activeTab, setActiveTab] = useState<"players" | "teams">("players");
   const [search, setSearch] = useState("");
@@ -106,8 +120,19 @@ export default function PublicDashboard() {
         {/* ── Header + Tabs ──────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 sm:mb-8">
           <div>
-            <h1 className="font-heading text-3xl sm:text-5xl text-white tracking-wider uppercase leading-none">Live Auction</h1>
-            <p className="text-muted-foreground text-xs sm:text-sm mt-1">Real-time player tracking and team formations</p>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="font-heading text-3xl sm:text-5xl text-white tracking-wider uppercase leading-none">Live Auction</h1>
+              <span className="flex items-center gap-1.5 bg-red-500/15 border border-red-500/30 rounded-full px-2.5 py-1 self-end mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-red-400">Live</span>
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs sm:text-sm">
+              Real-time tracking
+              {timeAgo && (
+                <span className="ml-2 text-white/30">· updated {timeAgo}</span>
+              )}
+            </p>
           </div>
           <div className="flex bg-white/5 border border-white/10 rounded-lg p-1 self-start sm:self-auto">
             <button
