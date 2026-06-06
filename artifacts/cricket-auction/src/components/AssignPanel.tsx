@@ -3,13 +3,15 @@ import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { X, Check, Star, AlertTriangle, TrendingUp } from "lucide-react";
+import { X, Check, Star, AlertTriangle, TrendingUp, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function AssignPanel() {
-  const { players, teams, assignPlayerToTeam, removePlayerFromTeam } = useData();
+  const { players, teams, assignPlayerToTeam, removePlayerFromTeam, editPlayer } = useData();
   const [selectedTeams, setSelectedTeams] = useState<Record<string, string>>({});
   const [searchAvailable, setSearchAvailable] = useState("");
+  const [editingPoints, setEditingPoints] = useState<Record<string, string>>({});
+  const [savingPoints, setSavingPoints] = useState<Record<string, boolean>>({});
 
   const availablePlayers = players.filter(
     p => p.status === "available" && p.name.toLowerCase().includes(searchAvailable.toLowerCase())
@@ -32,6 +34,36 @@ export function AssignPanel() {
   const handleRemove = async (playerId: string) => {
     await removePlayerFromTeam(playerId);
     toast.success("Player returned to auction pool");
+  };
+
+  const startEditPoints = (playerId: string, currentPoints: number) => {
+    setEditingPoints(prev => ({ ...prev, [playerId]: String(currentPoints) }));
+  };
+
+  const cancelEditPoints = (playerId: string) => {
+    setEditingPoints(prev => {
+      const next = { ...prev };
+      delete next[playerId];
+      return next;
+    });
+  };
+
+  const savePoints = async (playerId: string) => {
+    const val = parseInt(editingPoints[playerId], 10);
+    if (isNaN(val) || val < 0) {
+      toast.error("Points must be a valid number");
+      return;
+    }
+    setSavingPoints(prev => ({ ...prev, [playerId]: true }));
+    try {
+      await editPlayer(playerId, { points: val });
+      toast.success("Points updated!");
+      cancelEditPoints(playerId);
+    } catch {
+      toast.error("Failed to update points");
+    } finally {
+      setSavingPoints(prev => ({ ...prev, [playerId]: false }));
+    }
   };
 
   return (
@@ -100,6 +132,7 @@ export function AssignPanel() {
               const selectedTeam = selectedTeamId ? teams.find(t => t.id === selectedTeamId) : null;
               const availablePoints = selectedTeam ? selectedTeam.totalPoints - selectedTeam.usedPoints : null;
               const canAfford = availablePoints === null || availablePoints >= player.points;
+              const isEditingThisPlayer = player.id in editingPoints;
 
               return (
                 <div
@@ -129,8 +162,59 @@ export function AssignPanel() {
                           : `✗ Not enough — need ${player.points} pts, ${selectedTeam.name} only has ${availablePoints} pts`}
                       </p>
                     )}
+                    {/* Inline points editor */}
+                    {isEditingThisPlayer && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editingPoints[player.id]}
+                          onChange={e => setEditingPoints(prev => ({ ...prev, [player.id]: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") savePoints(player.id);
+                            if (e.key === "Escape") cancelEditPoints(player.id);
+                          }}
+                          className="h-6 w-20 text-xs bg-black/40 border-primary/40 text-white px-2"
+                          autoFocus
+                        />
+                        <span className="text-[10px] text-white/40">pts</span>
+                        <Button
+                          size="sm"
+                          className="h-6 px-2 text-[10px] bg-primary hover:bg-primary/80 text-black font-bold"
+                          onClick={() => savePoints(player.id)}
+                          disabled={savingPoints[player.id]}
+                        >
+                          {savingPoints[player.id] ? "..." : "Save"}
+                        </Button>
+                        <button
+                          onClick={() => cancelEditPoints(player.id)}
+                          className="text-white/30 hover:text-white/60 text-[10px] px-1"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Edit Points Button */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={`h-7 w-7 p-0 shrink-0 transition-colors ${
+                        isEditingThisPlayer
+                          ? "bg-primary/20 text-primary border border-primary/40"
+                          : "bg-black/40 border border-white/10 text-white/50 hover:text-primary hover:border-primary/40 hover:bg-primary/10"
+                      }`}
+                      onClick={() =>
+                        isEditingThisPlayer
+                          ? cancelEditPoints(player.id)
+                          : startEditPoints(player.id, player.points)
+                      }
+                      title="Modify points"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+
                     <Select
                       value={selectedTeams[player.id] || ""}
                       onValueChange={(val) => setSelectedTeams(prev => ({ ...prev, [player.id]: val }))}

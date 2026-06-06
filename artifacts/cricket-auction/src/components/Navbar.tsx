@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Shield, Zap, LogOut, User } from "lucide-react";
+import { Shield, LogOut, User } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BettingAuthModal } from "@/components/betting/BettingAuthModal";
 import { useBetting } from "@/context/BettingContext";
 
 const ADMIN_PIN = "6261";
 
 export function Navbar() {
-  const { user, isAdmin, logout } = useBetting();
+  const { user, logout } = useBetting();
   const [clickCount, setClickCount] = useState(0);
   const [pinOpen, setPinOpen] = useState(false);
   const [pin, setPin] = useState(["", "", "", ""]);
   const [pinError, setPinError] = useState(false);
-  const [bettingAuthOpen, setBettingAuthOpen] = useState(false);
   const [, setLocation] = useLocation();
   const inputRefs = [
     useRef<HTMLInputElement>(null),
@@ -75,16 +73,6 @@ export function Navbar() {
     verifyPin(pin.join(""));
   };
 
-  const handleBettingClick = () => {
-    if (isAdmin) {
-      setLocation("/betting-admin");
-    } else if (user) {
-      setLocation("/betting");
-    } else {
-      setBettingAuthOpen(true);
-    }
-  };
-
   const handleLogout = async () => {
     await logout();
     setLocation("/");
@@ -99,16 +87,6 @@ export function Navbar() {
             <span className="font-heading text-2xl sm:text-3xl tracking-wide text-white uppercase mt-1">S<span className="text-primary">P</span>L</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Online Batting Button */}
-            <button
-              onClick={handleBettingClick}
-              className="flex items-center gap-1.5 bg-yellow-400/10 border border-yellow-400/30 hover:bg-yellow-400/20 text-yellow-400 text-xs sm:text-sm font-bold px-3 sm:px-4 py-1.5 rounded-lg transition-all active:scale-95"
-            >
-              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Online Betting</span>
-              <span className="sm:hidden">Betting</span>
-            </button>
-
             {/* User avatar / logout when logged in */}
             {user && (
               <div className="flex items-center gap-2">
@@ -170,9 +148,6 @@ export function Navbar() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Betting Auth Modal */}
-      <BettingAuthModal open={bettingAuthOpen} onClose={() => setBettingAuthOpen(false)} />
     </>
   );
 }
