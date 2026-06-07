@@ -26,3 +26,4 @@ export const teamsTable = pgTable("spl_teams", {
 });
 
 export * from "./betting";
+export * from "./matches";

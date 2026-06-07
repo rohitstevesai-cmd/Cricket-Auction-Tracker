@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft, Star } from "lucide-react";
+import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft, Star, Zap, CalendarDays, CheckCircle2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerForm } from "@/components/PlayerForm";
 import { TeamForm } from "@/components/TeamForm";
@@ -22,12 +22,51 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Player, Team } from "@/context/DataContext";
 import { Badge } from "@/components/ui/badge";
+import { useMatches } from "@/hooks/useMatches";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ManagementDashboard() {
   const { players, teams, deletePlayer, deleteTeam } = useData();
   const [, setLocation] = useLocation();
+  const { matches, createMatch, updateMatch, deleteMatch } = useMatches();
 
   const [activeTab, setActiveTab] = useState("players");
+
+  // Match form state
+  const [matchFormOpen, setMatchFormOpen] = useState(false);
+  const [matchTeam1, setMatchTeam1] = useState("");
+  const [matchTeam2, setMatchTeam2] = useState("");
+  const [matchVenue, setMatchVenue] = useState("");
+  const [matchDate, setMatchDate] = useState("");
+  const [matchOvers, setMatchOvers] = useState("20");
+  const [matchToDelete, setMatchToDelete] = useState<string | null>(null);
+  const [savingMatch, setSavingMatch] = useState(false);
+
+  const handleCreateMatch = async () => {
+    if (!matchTeam1 || !matchTeam2 || matchTeam1 === matchTeam2) {
+      toast.error("Select two different teams"); return;
+    }
+    setSavingMatch(true);
+    try {
+      await createMatch({ team1Id: matchTeam1, team2Id: matchTeam2, venue: matchVenue, matchDate, overs: parseInt(matchOvers) || 20 });
+      toast.success("Match scheduled!");
+      setMatchTeam1(""); setMatchTeam2(""); setMatchVenue(""); setMatchDate("");
+      setMatchFormOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSavingMatch(false); }
+  };
+
+  const handleDeleteMatch = async () => {
+    if (!matchToDelete) return;
+    try { await deleteMatch(matchToDelete); toast.success("Match deleted"); setMatchToDelete(null); }
+    catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try { await updateMatch(id, { status: status as any }); toast.success(`Status → ${status}`); }
+    catch (e: any) { toast.error(e.message); }
+  };
   
   // Modals state
   const [playerFormOpen, setPlayerFormOpen] = useState(false);
@@ -111,6 +150,11 @@ export default function ManagementDashboard() {
             <TabsTrigger value="assignments" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <span className="sm:hidden">Auction</span>
               <span className="hidden sm:inline">Auction Room</span>
+            </TabsTrigger>
+            <TabsTrigger value="matches" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1 justify-center">
+              <Zap className="w-3 h-3 flex-shrink-0" />
+              <span className="sm:hidden">Match</span>
+              <span className="hidden sm:inline">Matches</span>
             </TabsTrigger>
           </TabsList>
 
@@ -263,6 +307,120 @@ export default function ManagementDashboard() {
           <TabsContent value="assignments" className="mt-0">
             <AssignPanel />
           </TabsContent>
+
+          <TabsContent value="matches" className="mt-0">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg sm:text-2xl font-heading uppercase tracking-wide text-white leading-tight">Match Schedule</h2>
+                <p className="text-muted-foreground text-xs mt-0.5 hidden sm:block">Create and manage SPL matches</p>
+              </div>
+              <Button onClick={() => setMatchFormOpen(v => !v)} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-wide text-xs h-8 px-3">
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> New Match
+              </Button>
+            </div>
+
+            {/* Create Match Form */}
+            {matchFormOpen && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4 space-y-3">
+                <h3 className="font-heading text-sm text-white uppercase tracking-wide">Schedule New Match</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Team 1 (Batting first)</label>
+                    <Select value={matchTeam1} onValueChange={setMatchTeam1}>
+                      <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="Select team" /></SelectTrigger>
+                      <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Team 2</label>
+                    <Select value={matchTeam2} onValueChange={setMatchTeam2}>
+                      <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="Select team" /></SelectTrigger>
+                      <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Venue</label>
+                    <Input value={matchVenue} onChange={e => setMatchVenue(e.target.value)} placeholder="e.g. Main Ground" className="bg-black/30 border-white/10 h-8 text-xs" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Overs</label>
+                    <Input value={matchOvers} onChange={e => setMatchOvers(e.target.value)} type="number" min={1} max={50} className="bg-black/30 border-white/10 h-8 text-xs" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Date & Time</label>
+                  <Input value={matchDate} onChange={e => setMatchDate(e.target.value)} type="datetime-local" className="bg-black/30 border-white/10 h-8 text-xs" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="border-white/10 text-white/60 h-8" onClick={() => setMatchFormOpen(false)}>Cancel</Button>
+                  <Button size="sm" className="bg-primary h-8 font-bold" disabled={savingMatch} onClick={handleCreateMatch}>
+                    {savingMatch ? "Saving..." : "Schedule Match"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Matches list */}
+            <div className="space-y-2">
+              {matches.length === 0 && (
+                <div className="text-center py-12 bg-white/5 border border-dashed border-white/10 rounded-xl text-muted-foreground text-sm">No matches yet.</div>
+              )}
+              {matches.map(m => {
+                const t1 = teams.find(t => t.id === m.team1Id);
+                const t2 = teams.find(t => t.id === m.team2Id);
+                const inn = (m as any).innings ?? [];
+                const inn1 = inn.find((i: any) => i.inningsNumber === 1);
+                const inn2 = inn.find((i: any) => i.inningsNumber === 2);
+                return (
+                  <div key={m.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-heading text-sm text-white">{t1?.name ?? "?"} <span className="text-white/30">vs</span> {t2?.name ?? "?"}</span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                            m.status === "ongoing" ? "bg-red-500/20 border-red-500/30 text-red-400" :
+                            m.status === "completed" ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" :
+                            "bg-yellow-500/20 border-yellow-500/30 text-yellow-400"
+                          }`}>{m.status}</span>
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-0.5">
+                          {m.venue || "SPL"} · {m.overs} ov
+                          {m.matchDate && ` · ${new Date(m.matchDate).toLocaleString()}`}
+                          {inn1 && ` · ${inn1.totalRuns}/${inn1.totalWickets}`}
+                          {inn2 && ` vs ${inn2.totalRuns}/${inn2.totalWickets}`}
+                          {m.winner && ` · 🏆 ${m.winner.name}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Status controls */}
+                        {m.status === "upcoming" && (
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
+                            onClick={() => handleStatusChange(m.id, "ongoing")}>
+                            Go Live
+                          </Button>
+                        )}
+                        {m.status === "ongoing" && (
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                            onClick={() => handleStatusChange(m.id, "completed")}>
+                            End
+                          </Button>
+                        )}
+                        <Link href={`/match/${m.id}`}>
+                          <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-blue-400 hover:bg-blue-400/10">View</Button>
+                        </Link>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400/60 hover:text-red-400 hover:bg-red-400/10"
+                          onClick={() => setMatchToDelete(m.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -282,6 +440,20 @@ export default function ManagementDashboard() {
           <AlertDialogFooter>
             <AlertDialogCancel className="border-white/20 text-white bg-transparent hover:bg-white/10">Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmDeletePlayer}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Match Dialog */}
+      <AlertDialog open={!!matchToDelete} onOpenChange={(o) => !o && setMatchToDelete(null)}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-400">Delete Match?</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/70">This will permanently delete the match and all scoring data.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/20 text-white bg-transparent hover:bg-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteMatch}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

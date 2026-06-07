@@ -12,6 +12,7 @@ import ManagementDashboard from "@/pages/ManagementDashboard";
 import BettingDashboard from "@/pages/BettingDashboard";
 import BettingAdmin from "@/pages/BettingAdmin";
 import SplashScreen from "@/components/SplashScreen";
+import MatchDetail from "@/pages/MatchDetail";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={PublicDashboard} />
       <Route path="/team/:id" component={TeamDetail} />
       <Route path="/admin" component={ManagementDashboard} />
+      <Route path="/match/:id" component={MatchDetail} />
       <Route path="/betting" component={BettingDashboard} />
       <Route path="/betting-admin" component={BettingAdmin} />
       <Route component={NotFound} />

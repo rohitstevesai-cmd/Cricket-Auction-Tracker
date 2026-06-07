@@ -8,9 +8,77 @@ import { PlayerCard } from "@/components/PlayerCard";
 import { PlayerDetailModal } from "@/components/PlayerDetailModal";
 import { TeamCard } from "@/components/TeamCard";
 import { Input } from "@/components/ui/input";
-import { Search, Star, Trophy, Crown, Shield } from "lucide-react";
+import { Search, Star, Trophy, Crown, Shield, CalendarDays, Zap, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMatches, SplMatch } from "@/hooks/useMatches";
+import { Link } from "wouter";
+
+function MatchCard({ match }: { match: SplMatch }) {
+  const inn = (match as any).innings ?? [];
+  const inn1 = inn.find((i: any) => i.inningsNumber === 1);
+  const inn2 = inn.find((i: any) => i.inningsNumber === 2);
+  const activeInn = inn.find((i: any) => i.status === "in_progress");
+  const t1 = match.team1;
+  const t2 = match.team2;
+  return (
+    <Link href={`/match/${match.id}`}>
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer group relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5" style={{ background: `linear-gradient(135deg, ${t1?.color ?? "#3b82f6"}, ${t2?.color ?? "#f59e0b"})` }} />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">{match.venue || "SPL"} · {match.overs} ov</span>
+            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+              match.status === "ongoing" ? "bg-red-500/20 border-red-500/30 text-red-400 flex items-center gap-1" :
+              match.status === "completed" ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" :
+              "bg-yellow-500/20 border-yellow-500/30 text-yellow-400"
+            }`}>
+              {match.status === "ongoing" && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />}
+              {match.status}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded flex-shrink-0" style={{ background: `${t1?.color ?? "#3b82f6"}30` }}>
+                  {t1?.logo && <img src={t1.logo} alt="" className="w-full h-full object-contain" />}
+                </div>
+                <span className="font-heading text-sm text-white truncate">{t1?.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded flex-shrink-0" style={{ background: `${t2?.color ?? "#f59e0b"}30` }}>
+                  {t2?.logo && <img src={t2.logo} alt="" className="w-full h-full object-contain" />}
+                </div>
+                <span className="font-heading text-sm text-white/70 truncate">{t2?.name}</span>
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0 space-y-1">
+              {inn1 && t1 && inn1.battingTeamId === t1.id && (
+                <p className="font-heading text-base text-white">{inn1.totalRuns}/{inn1.totalWickets} <span className="text-[10px] text-white/40">({inn1.oversCompleted}.{inn1.ballsCurrentOver})</span></p>
+              )}
+              {inn2 && t2 && inn2.battingTeamId === t2.id && (
+                <p className="font-heading text-base text-white">{inn2.totalRuns}/{inn2.totalWickets} <span className="text-[10px] text-white/40">({inn2.oversCompleted}.{inn2.ballsCurrentOver})</span></p>
+              )}
+              {!inn1 && !inn2 && match.matchDate && (
+                <p className="text-[11px] text-white/40">{new Date(match.matchDate).toLocaleDateString()}</p>
+              )}
+            </div>
+          </div>
+          {match.status === "completed" && match.winner && (
+            <div className="mt-3 text-[10px] font-bold text-yellow-400 flex items-center gap-1">
+              <Trophy className="w-3 h-3" /> {match.winner.name} won
+            </div>
+          )}
+          {activeInn?.target && (
+            <div className="mt-2 text-[10px] text-primary">
+              Need {Math.max(0, activeInn.target - activeInn.totalRuns)} in {(match.overs * 6) - (activeInn.oversCompleted * 6 + activeInn.ballsCurrentOver)} balls
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
@@ -52,7 +120,8 @@ export default function PublicDashboard() {
     return () => clearInterval(id);
   }, [lastUpdated]);
 
-  const [activeTab, setActiveTab] = useState<"players" | "teams">("players");
+  const [activeTab, setActiveTab] = useState<"players" | "teams" | "matches">("players");
+  const { matches, loading: matchesLoading } = useMatches();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -146,6 +215,14 @@ export default function PublicDashboard() {
               className={`font-heading text-sm sm:text-base tracking-wide px-5 sm:px-8 py-2 rounded-md transition-all ${activeTab === "teams" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-white"}`}
             >
               Teams
+            </button>
+            <button
+              onClick={() => setActiveTab("matches")}
+              className={`font-heading text-sm sm:text-base tracking-wide px-5 sm:px-8 py-2 rounded-md transition-all flex items-center gap-1.5 ${activeTab === "matches" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-white"}`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Matches</span>
+              <span className="sm:hidden">Match</span>
             </button>
           </div>
         </div>
@@ -503,6 +580,68 @@ export default function PublicDashboard() {
                 </div>
 
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MATCHES TAB
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === "matches" && (
+          <div className="space-y-6">
+            {matchesLoading ? (
+              <div className="text-center py-20 text-white/30">Loading matches...</div>
+            ) : matches.length === 0 ? (
+              <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                <span className="text-4xl mb-4 block">🏏</span>
+                <h3 className="font-heading text-2xl text-white uppercase tracking-wide">No Matches Yet</h3>
+                <p className="text-white/40 mt-2 text-sm">Matches will appear here once scheduled.</p>
+              </div>
+            ) : (
+              <>
+                {/* Live matches */}
+                {matches.filter(m => m.status === "ongoing").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <h2 className="font-heading text-lg text-white uppercase tracking-wider">Live Now</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {matches.filter(m => m.status === "ongoing").map(m => (
+                        <MatchCard key={m.id} match={m} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Upcoming matches */}
+                {matches.filter(m => m.status === "upcoming").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CalendarDays className="w-4 h-4 text-yellow-400" />
+                      <h2 className="font-heading text-lg text-white uppercase tracking-wider">Upcoming</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {matches.filter(m => m.status === "upcoming").map(m => (
+                        <MatchCard key={m.id} match={m} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Completed matches */}
+                {matches.filter(m => m.status === "completed").length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <h2 className="font-heading text-lg text-white uppercase tracking-wider">Results</h2>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {matches.filter(m => m.status === "completed").map(m => (
+                        <MatchCard key={m.id} match={m} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

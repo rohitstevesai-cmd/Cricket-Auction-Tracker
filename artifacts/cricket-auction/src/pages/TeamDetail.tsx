@@ -6,21 +6,26 @@ import { Footer } from "@/components/Footer";
 import { PlayerDetailModal } from "@/components/PlayerDetailModal";
 import { PlayerForm } from "@/components/PlayerForm";
 import { SquadPlayerCard } from "@/components/SquadPlayerCard";
-import { ArrowLeft, MapPin, Users, Star, ShieldCheck } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Star, ShieldCheck, Zap, CalendarDays, Trophy, CheckCircle2 } from "lucide-react";
+import { useMatches, SplMatch } from "@/hooks/useMatches";
 
 export default function TeamDetail() {
   const { id } = useParams<{ id: string }>();
   const { teams, players } = useData();
+  const { matches } = useMatches();
 
   const [isOwner, setIsOwner] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editPlayer, setEditPlayer] = useState<Player | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"squad" | "matches">("squad");
 
   useEffect(() => {
     setIsOwner(sessionStorage.getItem("splAdmin") === "1");
   }, []);
+
+  const teamMatches = matches.filter(m => m.team1Id === id || m.team2Id === id);
 
   const team = teams.find((t) => t.id === id);
   const teamPlayers = players.filter((p) => p.teamId === id);
@@ -123,39 +128,97 @@ export default function TeamDetail() {
           </div>
         </div>
 
-        {/* Squad Section */}
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="font-heading text-2xl sm:text-3xl text-white tracking-wider uppercase">
-                {team.name} · Squad
-              </h2>
-              {isOwner && (
-                <p className="text-xs text-white/40 mt-0.5">Hover a card and tap ✏️ to edit a player</p>
-              )}
-            </div>
-            <span className="text-sm text-white/30 font-semibold">{teamPlayers.length} players</span>
+        {/* Tabs */}
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+          <div className="flex bg-white/5 border border-white/10 rounded-lg p-1 mb-6 w-fit">
+            <button onClick={() => setActiveTab("squad")}
+              className={`font-heading text-sm tracking-wide px-6 py-2 rounded-md transition-all ${activeTab === "squad" ? "bg-primary text-primary-foreground" : "text-white/50 hover:text-white"}`}>
+              Squad
+            </button>
+            <button onClick={() => setActiveTab("matches")}
+              className={`font-heading text-sm tracking-wide px-6 py-2 rounded-md transition-all flex items-center gap-1.5 ${activeTab === "matches" ? "bg-primary text-primary-foreground" : "text-white/50 hover:text-white"}`}>
+              <Zap className="w-3.5 h-3.5" /> Matches {teamMatches.length > 0 && <span className="text-[10px] bg-white/20 rounded-full w-4 h-4 flex items-center justify-center">{teamMatches.length}</span>}
+            </button>
           </div>
 
-          {teamPlayers.length === 0 ? (
-            <div className="text-center py-24 border border-dashed border-white/10 rounded-2xl bg-white/5">
-              <span className="text-4xl mb-4 block">🏏</span>
-              <h3 className="font-heading text-2xl text-white tracking-wide uppercase">Squad Empty</h3>
-              <p className="text-white/40 mt-2 text-sm">No players assigned to this team yet.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-              {teamPlayers.map((player, i) => (
-                <SquadPlayerCard
-                  key={player.id}
-                  player={player}
-                  team={team}
-                  index={i}
-                  isOwner={isOwner}
-                  onClick={openDetail}
-                  onEdit={openEdit}
-                />
-              ))}
+          {activeTab === "squad" && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="font-heading text-2xl sm:text-3xl text-white tracking-wider uppercase">{team.name} · Squad</h2>
+                  {isOwner && <p className="text-xs text-white/40 mt-0.5">Hover a card and tap ✏️ to edit a player</p>}
+                </div>
+                <span className="text-sm text-white/30 font-semibold">{teamPlayers.length} players</span>
+              </div>
+              {teamPlayers.length === 0 ? (
+                <div className="text-center py-24 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                  <span className="text-4xl mb-4 block">🏏</span>
+                  <h3 className="font-heading text-2xl text-white tracking-wide uppercase">Squad Empty</h3>
+                  <p className="text-white/40 mt-2 text-sm">No players assigned to this team yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                  {teamPlayers.map((player, i) => (
+                    <SquadPlayerCard key={player.id} player={player} team={team} index={i} isOwner={isOwner} onClick={openDetail} onEdit={openEdit} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === "matches" && (
+            <div className="space-y-4">
+              {teamMatches.length === 0 ? (
+                <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl bg-white/5">
+                  <span className="text-3xl mb-3 block">📅</span>
+                  <h3 className="font-heading text-xl text-white uppercase">No Matches</h3>
+                  <p className="text-white/40 mt-2 text-sm">No matches scheduled for this team.</p>
+                </div>
+              ) : (
+                <>
+                  {["ongoing", "upcoming", "completed"].map(status => {
+                    const filtered = teamMatches.filter(m => m.status === status);
+                    if (!filtered.length) return null;
+                    return (
+                      <div key={status}>
+                        <div className="flex items-center gap-2 mb-3">
+                          {status === "ongoing" && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+                          {status === "upcoming" && <CalendarDays className="w-4 h-4 text-yellow-400" />}
+                          {status === "completed" && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                          <span className="font-heading text-sm text-white/60 uppercase tracking-wider">{status}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {filtered.map(m => {
+                            const opp = m.team1Id === id ? m.team2 : m.team1;
+                            const inn = (m as any).innings ?? [];
+                            const myInn = inn.find((i: any) => i.battingTeamId === id);
+                            const oppInn = inn.find((i: any) => i.battingTeamId !== id);
+                            return (
+                              <Link key={m.id} href={`/match/${m.id}`}>
+                                <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-white">vs {opp?.name ?? "TBD"}</p>
+                                    <p className="text-[10px] text-white/40 mt-0.5">{m.venue || "SPL"} · {m.overs} ov{m.matchDate ? ` · ${new Date(m.matchDate).toLocaleDateString()}` : ""}</p>
+                                  </div>
+                                  <div className="text-right text-sm">
+                                    {myInn && <p className="font-bold text-white">{myInn.totalRuns}/{myInn.totalWickets}</p>}
+                                    {oppInn && <p className="text-white/50">{oppInn.totalRuns}/{oppInn.totalWickets}</p>}
+                                    {m.status === "completed" && m.winner && (
+                                      <p className={`text-[10px] font-bold mt-1 ${m.winner.id === id ? "text-emerald-400" : "text-red-400"}`}>
+                                        {m.winner.id === id ? "WON" : "LOST"}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
