@@ -52,7 +52,7 @@ router.put("/betting/admin/settings", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
     const { key, value } = req.body;
-    if (!key) return res.status(400).json({ error: "key required" });
+    if (!key) return void res.status(400).json({ error: "key required" });
     await db.insert(bettingSettingsTable)
       .values({ key, value, updatedAt: new Date().toISOString() })
       .onConflictDoUpdate({
@@ -83,7 +83,7 @@ router.post("/betting/admin/matches", async (req, res) => {
     const teamsArray: string[] | null = isSpecial && Array.isArray(teams) && teams.length >= 2 ? teams : null;
     const t1 = teamsArray ? teamsArray[0] : team1;
     const t2 = teamsArray ? teamsArray[1] : team2;
-    if (!title || !t1 || !t2 || !matchDate) return res.status(400).json({ error: "title, teams, matchDate required" });
+    if (!title || !t1 || !t2 || !matchDate) return void res.status(400).json({ error: "title, teams, matchDate required" });
     const id = crypto.randomUUID();
     await db.insert(matchesTable).values({
       id, title, team1: t1, team2: t2, matchDate,
@@ -126,14 +126,14 @@ router.post("/betting/admin/matches/:id/winner", async (req, res) => {
     const { winner } = req.body;
 
     const matchRows = await db.select().from(matchesTable).where(eq(matchesTable.id, id)).limit(1);
-    if (!matchRows.length) return res.status(404).json({ error: "Match not found" });
+    if (!matchRows.length) return void res.status(404).json({ error: "Match not found" });
     const match = matchRows[0];
 
     const teamsArray: string[] | null = match.teams ? JSON.parse(match.teams) : null;
     const teamPayoutsObj: Record<string, number> | null = match.teamPayouts ? JSON.parse(match.teamPayouts) : null;
     const validWinners = teamsArray ? [...teamsArray, "draw"] : ["team1", "team2", "draw"];
     if (!validWinners.includes(winner)) {
-      return res.status(400).json({ error: `winner must be one of: ${validWinners.join(", ")}` });
+      return void res.status(400).json({ error: `winner must be one of: ${validWinners.join(", ")}` });
     }
 
     const defaultMultiplier = teamsArray ? getDefaultMultiplier(teamsArray.length) : 1.9;
@@ -183,21 +183,21 @@ router.post("/betting/bets", async (req, res) => {
   if (!userId) return;
   try {
     const { matchId, betOn, amount } = req.body;
-    if (!matchId || !betOn || !amount) return res.status(400).json({ error: "matchId, betOn, amount required" });
-    if (amount < 10) return res.status(400).json({ error: "Minimum bet is ₹10" });
+    if (!matchId || !betOn || !amount) return void res.status(400).json({ error: "matchId, betOn, amount required" });
+    if (amount < 10) return void res.status(400).json({ error: "Minimum bet is ₹10" });
 
     const matches = await db.select().from(matchesTable).where(eq(matchesTable.id, matchId)).limit(1);
-    if (!matches.length) return res.status(404).json({ error: "Match not found" });
+    if (!matches.length) return void res.status(404).json({ error: "Match not found" });
     const match = matches[0];
-    if (!["upcoming", "live"].includes(match.status)) return res.status(400).json({ error: "Betting is closed for this match" });
+    if (!["upcoming", "live"].includes(match.status)) return void res.status(400).json({ error: "Betting is closed for this match" });
 
     const teamsArray: string[] | null = match.teams ? JSON.parse(match.teams) : null;
     const validBetOn = teamsArray ? teamsArray : ["team1", "team2"];
-    if (!validBetOn.includes(betOn)) return res.status(400).json({ error: `betOn must be one of: ${validBetOn.join(", ")}` });
+    if (!validBetOn.includes(betOn)) return void res.status(400).json({ error: `betOn must be one of: ${validBetOn.join(", ")}` });
 
     const users = await db.select().from(bettingUsersTable).where(eq(bettingUsersTable.id, userId)).limit(1);
-    if (!users.length) return res.status(404).json({ error: "User not found" });
-    if (users[0].balance < amount) return res.status(400).json({ error: "Insufficient balance" });
+    if (!users.length) return void res.status(404).json({ error: "User not found" });
+    if (users[0].balance < amount) return void res.status(400).json({ error: "Insufficient balance" });
 
     await db.update(bettingUsersTable).set({ balance: users[0].balance - amount }).where(eq(bettingUsersTable.id, userId));
     const id = crypto.randomUUID();

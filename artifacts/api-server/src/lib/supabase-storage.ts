@@ -9,7 +9,7 @@ async function ensureBucket(): Promise<void> {
     headers: { Authorization: AUTH, apikey: supabaseConfig.serviceRoleKey },
   });
   if (!listRes.ok) return;
-  const buckets: { name: string }[] = await listRes.json();
+  const buckets = (await listRes.json()) as { name: string }[];
   if (buckets.some((b) => b.name === BUCKET)) return;
 
   await fetch(`${BASE}/bucket`, {

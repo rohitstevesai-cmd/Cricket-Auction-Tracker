@@ -40,9 +40,9 @@ router.post("/betting/transactions/add", async (req, res) => {
   if (!userId) return;
   try {
     const { amount, utrNo, imageUrl } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ error: "Invalid amount" });
-    if (!utrNo) return res.status(400).json({ error: "UTR number is required" });
-    if (!imageUrl) return res.status(400).json({ error: "Payment screenshot is required" });
+    if (!amount || amount <= 0) return void res.status(400).json({ error: "Invalid amount" });
+    if (!utrNo) return void res.status(400).json({ error: "UTR number is required" });
+    if (!imageUrl) return void res.status(400).json({ error: "Payment screenshot is required" });
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await db.insert(transactionsTable).values({ id, userId, type: "add", amount, status: "pending", utrNo, imageUrl, note: null, adminNote: null, createdAt: now, updatedAt: now });
@@ -58,10 +58,10 @@ router.post("/betting/transactions/withdraw", async (req, res) => {
   if (!userId) return;
   try {
     const { amount, note } = req.body;
-    if (!amount || amount < 100) return res.status(400).json({ error: "Minimum withdrawal amount is ₹100" });
+    if (!amount || amount < 100) return void res.status(400).json({ error: "Minimum withdrawal amount is ₹100" });
     const users = await db.select().from(bettingUsersTable).where(eq(bettingUsersTable.id, userId)).limit(1);
-    if (!users.length) return res.status(404).json({ error: "User not found" });
-    if (users[0].balance < amount) return res.status(400).json({ error: "Insufficient balance" });
+    if (!users.length) return void res.status(404).json({ error: "User not found" });
+    if (users[0].balance < amount) return void res.status(400).json({ error: "Insufficient balance" });
     // Deduct immediately and create pending withdrawal
     await db.update(bettingUsersTable).set({ balance: users[0].balance - amount }).where(eq(bettingUsersTable.id, userId));
     const id = crypto.randomUUID();
@@ -104,9 +104,9 @@ router.put("/betting/admin/transactions/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { status, adminNote, manualAmount } = req.body;
-    if (!["approved", "cancelled"].includes(status)) return res.status(400).json({ error: "Invalid status" });
+    if (!["approved", "cancelled"].includes(status)) return void res.status(400).json({ error: "Invalid status" });
     const txns = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id)).limit(1);
-    if (!txns.length) return res.status(404).json({ error: "Transaction not found" });
+    if (!txns.length) return void res.status(404).json({ error: "Transaction not found" });
     const txn = txns[0];
     const finalAmount = manualAmount && manualAmount > 0 ? manualAmount : txn.amount;
     await db.update(transactionsTable).set({ status, adminNote: adminNote || null, amount: finalAmount, updatedAt: new Date().toISOString() }).where(eq(transactionsTable.id, id));
@@ -147,7 +147,7 @@ router.put("/betting/admin/users/:id/balance", async (req, res) => {
   try {
     const { id } = req.params;
     const { balance } = req.body;
-    if (balance === undefined || balance < 0) return res.status(400).json({ error: "Invalid balance" });
+    if (balance === undefined || balance < 0) return void res.status(400).json({ error: "Invalid balance" });
     await db.update(bettingUsersTable).set({ balance }).where(eq(bettingUsersTable.id, id));
     res.json({ ok: true });
   } catch {
