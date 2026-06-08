@@ -1091,7 +1091,7 @@ function PerformanceHighlights({ inn1, inn2, t1, t2 }: { inn1?: SplInnings; inn2
       <div className="grid grid-cols-2 gap-3 p-4 pt-3">
         {/* Team 1 */}
         <div className="space-y-2">
-          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1" style={{ color: t1?.color ?? "#3b82f6" }}>
+          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1 text-white/50">
             {t1?.name}
           </p>
           <StatRow icon="🏏" label="Top Scorer" name={t1Top?.player?.name} detail={t1Top ? `${t1Top.runs} runs (${t1Top.balls}b) · SR ${t1Top.sr?.toFixed(1)}` : undefined} />
@@ -1101,7 +1101,7 @@ function PerformanceHighlights({ inn1, inn2, t1, t2 }: { inn1?: SplInnings; inn2
 
         {/* Team 2 */}
         <div className="space-y-2">
-          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1" style={{ color: t2?.color ?? "#f59e0b" }}>
+          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1 text-white/50">
             {t2?.name}
           </p>
           <StatRow icon="🏏" label="Top Scorer" name={t2Top?.player?.name} detail={t2Top ? `${t2Top.runs} runs (${t2Top.balls}b) · SR ${t2Top.sr?.toFixed(1)}` : undefined} />
