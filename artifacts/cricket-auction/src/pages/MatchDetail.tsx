@@ -1075,18 +1075,6 @@ function PerformanceHighlights({ inn1, inn2, t1, t2 }: { inn1?: SplInnings; inn2
         <h3 className="font-heading text-xs uppercase tracking-widest text-white/40">Performance Highlights</h3>
       </div>
 
-      {/* Man of the Match */}
-      {mom && (
-        <div className="mx-4 mt-4 flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
-          <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 text-xl">⭐</div>
-          <div>
-            <p className="text-[9px] uppercase tracking-widest text-yellow-500/60 font-bold">Man of the Match</p>
-            <p className="font-heading text-lg text-yellow-400 leading-tight">{mom.name}</p>
-            <p className="text-[11px] text-yellow-500/60">{mom.label}</p>
-          </div>
-        </div>
-      )}
-
       {/* Two-team grid */}
       <div className="grid grid-cols-2 gap-3 p-4 pt-3">
         {/* Team 1 */}
