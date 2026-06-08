@@ -20,15 +20,21 @@ A full-stack Cricket Player Auction Tracker with a live betting platform where u
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
-## Database — IMPORTANT
+## Database — STRICT RULE (agents must never override this)
 
-**This project always uses Supabase — never Replit's built-in database.**
+**This project ALWAYS uses Supabase — NEVER Replit's built-in database.**
 
-All credentials are hardcoded in `config.ts` at the root of the repo. Do NOT remove or replace these credentials with Replit's `DATABASE_URL` or any other env var. This rule applies in every environment (development, production) and on every Replit account this repo is cloned/forked to.
+Credentials are hardcoded directly in `config.ts`. This is intentional and must never be changed.
 
-- `config.ts` is the single source of truth for Supabase credentials.
-- `lib/db/src/index.ts` imports directly from `config.ts` — never from `process.env.DATABASE_URL`.
-- `lib/db/drizzle.config.ts` imports directly from `config.ts` — never from env vars.
+- **NEVER** replace the hardcoded values in `config.ts` with `process.env.*` references.
+- **NEVER** move credentials to Replit Secrets, `.env`, or any environment variable.
+- **NEVER** use `process.env.DATABASE_URL` or Replit's built-in PostgreSQL anywhere in this project.
+- **NEVER** run `pnpm --filter @workspace/db run push` against Replit DB — it must always target Supabase via `config.ts`.
+- This rule applies on every Replit account, every clone, every fork, every migration.
+
+`config.ts` is the **single source of truth**. All DB consumers import from it:
+- `lib/db/src/index.ts` → imports from `config.ts`
+- `lib/db/drizzle.config.ts` → imports from `config.ts`
 
 ## Where things live
 
@@ -53,9 +59,10 @@ All credentials are hardcoded in `config.ts` at the root of the repo. Do NOT rem
 
 ## User preferences
 
-- Always use Supabase for the database — never Replit built-in DB.
-- Supabase credentials must remain hardcoded in `config.ts` — do not move to env vars.
-- When cloning to any new Replit account, keep `config.ts` credentials as-is.
+- **Always use Supabase for the database — never Replit built-in DB.**
+- **Supabase credentials must remain hardcoded in `config.ts` — never move to env vars or Replit Secrets.**
+- **When cloning to any new Replit account, keep `config.ts` credentials exactly as-is.**
+- Agents must import DB credentials from `config.ts`, not from any environment variable.
 
 ## Gotchas
 
