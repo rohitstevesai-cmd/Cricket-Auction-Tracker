@@ -42,6 +42,7 @@ export interface SplMatch {
   winnerId: string | null;
   tossWinnerId: string | null;
   tossDecision: string | null;
+  youtubeUrl: string | null;
   createdAt: string;
   team1: TeamInfo | null;
   team2: TeamInfo | null;
@@ -78,6 +79,7 @@ export interface BatsmanStat {
   isOut: boolean;
   dismissalType: string | null;
   dismissedBy: PlayerInfo | null;
+  fielder: PlayerInfo | null;
   sr: number;
 }
 
@@ -227,7 +229,7 @@ export function useScorecard(matchId: string | undefined, pollMs = 3000) {
     await refresh();
   };
 
-  const updateMatch = async (body: Partial<{ status: string; winnerId: string | null }>) => {
+  const updateMatch = async (body: Partial<{ status: string; winnerId: string | null; youtubeUrl: string | null }>) => {
     if (!matchId) return;
     await apiFetch(`/matches/${matchId}`, { method: "PUT", body: JSON.stringify(body) });
     await refresh();

@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, LineChart, Line, Legend, ReferenceLine,
 } from "recharts";
-import { ArrowLeft, Zap, Trophy, RotateCcw, CheckCircle2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Zap, Trophy, RotateCcw, CheckCircle2, ChevronDown, Youtube } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,24 +42,152 @@ function ballSymbol(b: SplBall): { label: string; color: string } {
 }
 function dismissalText(stat: any): string {
   if (!stat.isOut) return "not out";
-  const db = stat.dismissedBy?.name?.split(" ")[0] ?? "?";
+  const db = stat.dismissedBy?.name?.split(" ").slice(-1)[0] ?? "?";
+  const fl = stat.fielder?.name?.split(" ").slice(-1)[0];
   switch (stat.dismissalType) {
     case "bowled": return `b ${db}`;
-    case "caught": return `c ${stat.dismissedBy?.name?.split(" ")[0] ?? "?"} b ${db}`;
+    case "caught": return `c ${fl ?? "?"} b ${db}`;
     case "lbw": return `lbw b ${db}`;
-    case "runout": return `run out`;
-    case "stumped": return `st b ${db}`;
+    case "runout": return fl ? `run out (${fl})` : "run out";
+    case "stumped": return `st ${fl ?? "?"} b ${db}`;
     case "hitwicket": return `hit wicket b ${db}`;
     default: return stat.dismissalType ?? "out";
   }
 }
 
+function getYoutubeEmbedUrl(url: string): string | null {
+  if (!url?.trim()) return null;
+  try {
+    const u = new URL(url.trim());
+    let videoId = "";
+    if (u.hostname === "youtu.be" || u.hostname === "www.youtu.be") {
+      videoId = u.pathname.slice(1).split("?")[0];
+    } else if (u.hostname.includes("youtube.com")) {
+      videoId = u.searchParams.get("v") || "";
+      if (!videoId) {
+        const parts = u.pathname.split("/").filter(Boolean);
+        const idx = parts.findIndex(p => ["embed", "live", "shorts"].includes(p));
+        if (idx !== -1) videoId = parts[idx + 1] || "";
+        else if (parts.length) videoId = parts[parts.length - 1] || "";
+      }
+    }
+    if (!videoId) return null;
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+  } catch {
+    return null;
+  }
+}
+
 // ── BallDot Component ────────────────────────────────────────────────────────
-function BallDot({ ball }: { ball: SplBall }) {
+function BallDot({ ball, small }: { ball: SplBall; small?: boolean }) {
   const { label, color } = ballSymbol(ball);
+  const size = small ? "w-5 h-5 text-[8px]" : "w-8 h-8 text-[11px]";
   return (
-    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${color}`}>
+    <div className={`${size} rounded-full flex items-center justify-center font-bold flex-shrink-0 ${color}`}>
       {label}
+    </div>
+  );
+}
+
+// ── Live Score Ticker ─────────────────────────────────────────────────────────
+function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
+  activeInnings: SplInnings;
+  notOutBatsmen: any[];
+  currentBowler: any;
+}) {
+  const bat1 = notOutBatsmen[0];
+  const bat2 = notOutBatsmen[1];
+  const totalBalls = activeInnings.oversCompleted * 6 + activeInnings.ballsCurrentOver;
+  const crr = totalBalls > 0 ? (activeInnings.totalRuns / (totalBalls / 6)).toFixed(2) : "0.00";
+  const teamAbbr = activeInnings.battingTeam?.name?.split(" ").map((w: string) => w[0]).join("").slice(0, 3).toUpperCase() ?? "—";
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-white/10 mb-3" style={{
+      background: "linear-gradient(135deg, #0d1b2a 0%, #0a1628 100%)",
+    }}>
+      <div className="flex items-stretch min-h-[56px]">
+        {/* Left: Team logo + Batsmen */}
+        <div className="flex items-center gap-2.5 px-3 py-2.5 flex-1 min-w-0 border-r border-white/5">
+          {activeInnings.battingTeam?.logo ? (
+            <img src={activeInnings.battingTeam.logo} alt="" className="w-8 h-8 object-contain flex-shrink-0 rounded" />
+          ) : (
+            <div className="w-8 h-8 rounded-full flex-shrink-0 border border-white/10" style={{ background: activeInnings.battingTeam?.color || "#3b82f6" }} />
+          )}
+          <div className="min-w-0 flex-1">
+            {bat1 ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-amber-400 leading-none">★</span>
+                <span className="font-bold text-white text-xs truncate max-w-[80px]">{bat1.player?.name?.split(" ").slice(-1)[0] ?? "—"}</span>
+                <span className="text-white text-xs font-bold ml-auto">{bat1.runs}</span>
+                <span className="text-white/40 text-[10px]">({bat1.balls})</span>
+              </div>
+            ) : <div className="h-4" />}
+            {bat2 && (
+              <div className="flex items-center gap-1.5 mt-0.5 opacity-70">
+                <span className="text-[9px] text-white/20 leading-none">•</span>
+                <span className="font-semibold text-white/80 text-xs truncate max-w-[80px]">{bat2.player?.name?.split(" ").slice(-1)[0] ?? "—"}</span>
+                <span className="text-white/70 text-xs font-bold ml-auto">{bat2.runs}</span>
+                <span className="text-white/30 text-[10px]">({bat2.balls})</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Center: Score */}
+        <div className="flex flex-col items-center justify-center px-4 py-2.5 border-r border-white/5 flex-shrink-0">
+          <div className="flex items-baseline gap-1">
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider mr-1">{teamAbbr}</span>
+            <span className="font-heading text-2xl font-black text-white">{activeInnings.totalRuns}/{activeInnings.totalWickets}</span>
+          </div>
+          <div className="text-[10px] text-white/40 mt-0.5">
+            Ov: {activeInnings.oversCompleted}.{activeInnings.ballsCurrentOver} &nbsp;·&nbsp; CRR {crr}
+          </div>
+          {activeInnings.target && (
+            <div className="text-[10px] text-primary font-bold mt-0.5">
+              Need {Math.max(0, activeInnings.target - activeInnings.totalRuns)}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Bowler + current over */}
+        <div className="flex flex-col justify-center px-3 py-2.5 min-w-0 flex-1">
+          {currentBowler ? (
+            <>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[10px]">🎳</span>
+                <span className="font-bold text-white/90 text-xs truncate max-w-[80px]">{currentBowler.player?.name?.split(" ").slice(-1)[0] ?? "—"}</span>
+                <span className="text-white/50 text-[10px] ml-auto whitespace-nowrap">{fmtBowlerOvers(currentBowler.balls)}-{currentBowler.wickets}-{currentBowler.runs}</span>
+              </div>
+              {activeInnings.currentOverBalls.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {activeInnings.currentOverBalls.slice(-6).map(b => (
+                    <BallDot key={b.id} ball={b} small />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-white/20 text-xs">No bowler yet</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── YouTube Live Card ─────────────────────────────────────────────────────────
+function YouTubeCard({ url }: { url: string }) {
+  const embedUrl = getYoutubeEmbedUrl(url);
+  if (!embedUrl) return null;
+  return (
+    <div className="relative w-full rounded-xl overflow-hidden bg-black border border-red-500/20 mb-4" style={{ aspectRatio: "16/9" }}>
+      <iframe
+        src={embedUrl}
+        className="absolute inset-0 w-full h-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        title="Live Match Stream"
+      />
     </div>
   );
 }
@@ -318,6 +447,9 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   const [tossWinner, setTossWinner] = useState("");
   const [tossDecision, setTossDecision] = useState("bat");
 
+  const [ytUrl, setYtUrl] = useState(match?.youtubeUrl ?? "");
+  useEffect(() => { setYtUrl(match?.youtubeUrl ?? ""); }, [match?.youtubeUrl]);
+
   const bothTeams = [
     teams.find(t => t.id === match?.team1Id),
     teams.find(t => t.id === match?.team2Id),
@@ -530,6 +662,34 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
 
   return (
     <div className="space-y-4">
+      {/* YouTube Stream Management */}
+      <div className="bg-black/20 border border-red-500/20 rounded-xl p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-red-400/80 flex items-center gap-1.5">
+          <Youtube className="w-3.5 h-3.5" /> Live Stream
+        </p>
+        <div className="flex gap-2">
+          <Input
+            value={ytUrl}
+            onChange={e => setYtUrl(e.target.value)}
+            placeholder="https://youtube.com/watch?v=..."
+            className="bg-black/40 border-white/10 h-8 text-xs flex-1"
+          />
+          <Button size="sm"
+            className="h-8 text-[11px] bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 px-3"
+            onClick={async () => {
+              try { await updateMatch({ youtubeUrl: ytUrl || null }); toast.success(ytUrl ? "Stream link saved!" : "Stream removed"); }
+              catch (e: any) { toast.error(e.message); }
+            }}>
+            {ytUrl ? "Save" : "Clear"}
+          </Button>
+        </div>
+        {match?.youtubeUrl && (
+          <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> Stream is live on public view
+          </p>
+        )}
+      </div>
+
       {/* Setup: select batsmen + bowler */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-white/40">
@@ -876,37 +1036,18 @@ export default function MatchDetail() {
           </div>
         </div>
 
-        {/* Current Batsmen + Bowler (ongoing) */}
+        {/* Live Score Ticker (ongoing) */}
         {activeInnings && notOutBatsmen.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-              <p className="text-[9px] uppercase tracking-widest text-white/30 mb-2">At the Crease</p>
-              {notOutBatsmen.map((s, i) => (
-                <div key={s.playerId} className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2">
-                    {i === 0 && <span className="text-[8px] font-bold text-primary">★</span>}
-                    <span className="text-sm font-bold text-white">{s.player?.name ?? s.playerId}</span>
-                  </div>
-                  <span className="text-sm font-bold text-white">{s.runs} <span className="text-white/40 font-normal text-xs">({s.balls}b)</span></span>
-                </div>
-              ))}
-            </div>
-            {currentBowler && (
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-                <p className="text-[9px] uppercase tracking-widest text-white/30 mb-2">Current Bowler</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-white">{currentBowler.player?.name ?? currentBowler.playerId}</span>
-                  <span className="text-sm text-white/60">{fmtBowlerOvers(currentBowler.balls)}-{currentBowler.runs}-<span className="text-red-400 font-bold">{currentBowler.wickets}</span></span>
-                </div>
-                {/* Last 6 balls */}
-                {activeInnings.currentOverBalls.length > 0 && (
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                    {activeInnings.currentOverBalls.slice(-6).map((b) => <BallDot key={b.id} ball={b} />)}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <LiveScoreTicker
+            activeInnings={activeInnings}
+            notOutBatsmen={notOutBatsmen}
+            currentBowler={currentBowler}
+          />
+        )}
+
+        {/* YouTube Live Stream Card */}
+        {match.youtubeUrl && match.status === "ongoing" && (
+          <YouTubeCard url={match.youtubeUrl} />
         )}
 
         {/* Tabs (only if match has started) */}

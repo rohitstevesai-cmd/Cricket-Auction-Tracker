@@ -11,6 +11,7 @@ export const splMatchesTable = pgTable("spl_matches", {
   winnerId: text("winner_id"),
   tossWinnerId: text("toss_winner_id"),
   tossDecision: text("toss_decision"),
+  youtubeUrl: text("youtube_url"),
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
 });
 

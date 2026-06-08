@@ -47,7 +47,7 @@ function computeStatsFromBalls(balls: any[], playerMap: Record<string, any>) {
   for (const b of balls) {
     // Batting
     if (!batsmenMap[b.batsmanId]) {
-      batsmenMap[b.batsmanId] = { playerId: b.batsmanId, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, dismissalType: null, dismissedById: null };
+      batsmenMap[b.batsmanId] = { playerId: b.batsmanId, runs: 0, balls: 0, fours: 0, sixes: 0, isOut: false, dismissalType: null, dismissedById: null, catchFielderId: null };
     }
     batsmenMap[b.batsmanId].runs += b.runsOffBat ?? 0;
     if (b.isLegal) batsmenMap[b.batsmanId].balls++;
@@ -57,6 +57,7 @@ function computeStatsFromBalls(balls: any[], playerMap: Record<string, any>) {
       batsmenMap[b.batsmanId].isOut = true;
       batsmenMap[b.batsmanId].dismissalType = b.wicketType;
       batsmenMap[b.batsmanId].dismissedById = b.bowlerId;
+      batsmenMap[b.batsmanId].catchFielderId = b.fielderId || null;
     }
 
     // Bowling
@@ -75,6 +76,7 @@ function computeStatsFromBalls(balls: any[], playerMap: Record<string, any>) {
     ...s,
     player: playerMap[s.playerId] || null,
     dismissedBy: s.dismissedById ? playerMap[s.dismissedById] : null,
+    fielder: s.catchFielderId ? playerMap[s.catchFielderId] : null,
     sr: s.balls > 0 ? Math.round((s.runs / s.balls) * 100) : 0,
   }));
 
@@ -252,7 +254,7 @@ router.post("/matches", async (req, res) => {
 router.put("/matches/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const allowed = ["status", "winnerId", "tossWinnerId", "tossDecision", "venue", "matchDate", "overs"] as const;
+    const allowed = ["status", "winnerId", "tossWinnerId", "tossDecision", "venue", "matchDate", "overs", "youtubeUrl"] as const;
     const updates: any = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
