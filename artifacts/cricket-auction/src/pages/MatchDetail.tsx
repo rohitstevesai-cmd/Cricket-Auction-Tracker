@@ -497,9 +497,14 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   const inn2 = scorecard?.innings?.find((i: any) => i.inningsNumber === 2);
   const activeInnings: SplInnings | undefined = scorecard?.innings?.find((i: any) => i.status === "in_progress");
 
-  const [strikerId, setStrikerId] = useState("");
-  const [nonStrikerId, setNonStrikerId] = useState("");
-  const [bowlerId, setBowlerId] = useState("");
+  const storageKey = `spl-scoring-${matchId}`;
+  const [strikerId, setStrikerId] = useState(() => localStorage.getItem(`${storageKey}-striker`) ?? "");
+  const [nonStrikerId, setNonStrikerId] = useState(() => localStorage.getItem(`${storageKey}-nonstriker`) ?? "");
+  const [bowlerId, setBowlerId] = useState(() => localStorage.getItem(`${storageKey}-bowler`) ?? "");
+
+  useEffect(() => { localStorage.setItem(`${storageKey}-striker`, strikerId); }, [storageKey, strikerId]);
+  useEffect(() => { localStorage.setItem(`${storageKey}-nonstriker`, nonStrikerId); }, [storageKey, nonStrikerId]);
+  useEffect(() => { localStorage.setItem(`${storageKey}-bowler`, bowlerId); }, [storageKey, bowlerId]);
   const [pendingBallType, setPendingBallType] = useState<string | null>(null);
 
   // Wicket modal
