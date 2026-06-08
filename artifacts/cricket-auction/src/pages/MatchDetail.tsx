@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
-import { useScorecard, SplInnings, SplBall } from "@/hooks/useMatches";
+import { useScorecard, SplInnings, SplBall, BatsmanStat, BowlerStat } from "@/hooks/useMatches";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, LineChart, Line, Legend, ReferenceLine,
@@ -999,6 +999,120 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   );
 }
 
+// ── Performance Highlights ────────────────────────────────────────────────────
+function PerformanceHighlights({ inn1, inn2, t1, t2 }: { inn1?: SplInnings; inn2?: SplInnings; t1?: any; t2?: any }) {
+  if (!inn1 && !inn2) return null;
+
+  // Each team's batting & bowling innings
+  const t1BatInn = [inn1, inn2].find(i => i && i.battingTeamId === t1?.id);
+  const t2BatInn = [inn1, inn2].find(i => i && i.battingTeamId === t2?.id);
+  const t1BowlInn = [inn1, inn2].find(i => i && i.bowlingTeamId === t1?.id);
+  const t2BowlInn = [inn1, inn2].find(i => i && i.bowlingTeamId === t2?.id);
+
+  // Top scorer
+  const topScorer = (inn?: SplInnings): BatsmanStat | null =>
+    inn?.batsmenStats.reduce((best: BatsmanStat | null, s) => !best || s.runs > best.runs ? s : best, null) ?? null;
+
+  // Best bowler — most wickets, tie → best economy
+  const bestBowler = (inn?: SplInnings): BowlerStat | null =>
+    inn?.bowlerStats.filter(s => s.balls > 0).reduce((best: BowlerStat | null, s) => {
+      if (!best) return s;
+      if (s.wickets > best.wickets) return s;
+      if (s.wickets === best.wickets && s.economy < best.economy) return s;
+      return best;
+    }, null) ?? null;
+
+  // Best fielder — count from batsmenStats.fielder
+  const bestFielder = (inn?: SplInnings): { name: string; count: number } | null => {
+    if (!inn) return null;
+    const counts: Record<string, { name: string; count: number }> = {};
+    for (const stat of inn.batsmenStats) {
+      if (stat.isOut && stat.fielder) {
+        const key = stat.fielder.name;
+        if (!counts[key]) counts[key] = { name: stat.fielder.name, count: 0 };
+        counts[key].count++;
+      }
+    }
+    return Object.values(counts).sort((a, b) => b.count - a.count)[0] ?? null;
+  };
+
+  // Man of the Match — combined impact score
+  type Candidate = { name: string; score: number; label: string };
+  const allBat: Candidate[] = [...(inn1?.batsmenStats ?? []), ...(inn2?.batsmenStats ?? [])].map(s => ({
+    name: s.player?.name ?? "?",
+    score: s.runs + (s.sr > 150 ? 15 : 0) + s.fours * 0.5 + s.sixes,
+    label: `${s.runs} runs (SR ${s.sr?.toFixed(0)})`,
+  }));
+  const allBowl: Candidate[] = [...(inn1?.bowlerStats ?? []), ...(inn2?.bowlerStats ?? [])].filter(s => s.balls > 0).map(s => ({
+    name: s.player?.name ?? "?",
+    score: s.wickets * 25 + Math.max(0, 10 - s.economy),
+    label: `${s.wickets}W · Eco ${s.economy?.toFixed(1)}`,
+  }));
+  const mom = [...allBat, ...allBowl].sort((a, b) => b.score - a.score)[0] ?? null;
+
+  const t1Top = topScorer(t1BatInn);
+  const t2Top = topScorer(t2BatInn);
+  const t1Bowl = bestBowler(t1BowlInn);
+  const t2Bowl = bestBowler(t2BowlInn);
+  const t1Field = bestFielder(t1BowlInn);
+  const t2Field = bestFielder(t2BowlInn);
+
+  const StatRow = ({ icon, label, name, detail }: { icon: string; label: string; name?: string | null; detail?: string }) => (
+    <div className="flex items-center gap-2.5 bg-black/25 rounded-xl p-2.5">
+      <span className="text-base w-6 text-center flex-shrink-0">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold leading-none mb-0.5">{label}</p>
+        <p className="text-sm font-heading text-white leading-tight truncate">{name ?? "—"}</p>
+        {detail && <p className="text-[10px] text-white/40 leading-tight">{detail}</p>}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3 border-b border-white/5">
+        <h3 className="font-heading text-xs uppercase tracking-widest text-white/40">Performance Highlights</h3>
+      </div>
+
+      {/* Man of the Match */}
+      {mom && (
+        <div className="mx-4 mt-4 flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
+          <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 text-xl">⭐</div>
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-yellow-500/60 font-bold">Man of the Match</p>
+            <p className="font-heading text-lg text-yellow-400 leading-tight">{mom.name}</p>
+            <p className="text-[11px] text-yellow-500/60">{mom.label}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Two-team grid */}
+      <div className="grid grid-cols-2 gap-3 p-4 pt-3">
+        {/* Team 1 */}
+        <div className="space-y-2">
+          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1" style={{ color: t1?.color ?? "#3b82f6" }}>
+            {t1?.name}
+          </p>
+          <StatRow icon="🏏" label="Top Scorer" name={t1Top?.player?.name} detail={t1Top ? `${t1Top.runs} runs (${t1Top.balls}b) · SR ${t1Top.sr?.toFixed(1)}` : undefined} />
+          <StatRow icon="🎳" label="Best Bowler" name={t1Bowl?.player?.name} detail={t1Bowl ? `${t1Bowl.wickets}W · Eco ${t1Bowl.economy?.toFixed(1)}` : undefined} />
+          <StatRow icon="🧤" label="Best Fielder" name={t1Field?.name} detail={t1Field ? `${t1Field.count} dismissal${t1Field.count !== 1 ? "s" : ""}` : undefined} />
+        </div>
+
+        {/* Team 2 */}
+        <div className="space-y-2">
+          <p className="font-heading text-[10px] uppercase tracking-widest truncate pb-1" style={{ color: t2?.color ?? "#f59e0b" }}>
+            {t2?.name}
+          </p>
+          <StatRow icon="🏏" label="Top Scorer" name={t2Top?.player?.name} detail={t2Top ? `${t2Top.runs} runs (${t2Top.balls}b) · SR ${t2Top.sr?.toFixed(1)}` : undefined} />
+          <StatRow icon="🎳" label="Best Bowler" name={t2Bowl?.player?.name} detail={t2Bowl ? `${t2Bowl.wickets}W · Eco ${t2Bowl.economy?.toFixed(1)}` : undefined} />
+          <StatRow icon="🧤" label="Best Fielder" name={t2Field?.name} detail={t2Field ? `${t2Field.count} dismissal${t2Field.count !== 1 ? "s" : ""}` : undefined} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main MatchDetail Page ─────────────────────────────────────────────────────
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>();
@@ -1203,6 +1317,8 @@ export default function MatchDetail() {
                 {/* Innings scorecards */}
                 {inn1 && <InningsScorecard inn={inn1} matchOvers={match.overs} />}
                 {inn2 && <InningsScorecard inn={inn2} matchOvers={match.overs} />}
+                {/* Performance Highlights */}
+                {(inn1 || inn2) && <PerformanceHighlights inn1={inn1} inn2={inn2} t1={t1} t2={t2} />}
               </div>
             )}
 
