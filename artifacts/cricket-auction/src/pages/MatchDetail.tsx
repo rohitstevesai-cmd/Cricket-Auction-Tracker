@@ -116,20 +116,26 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
         </div>
 
         {/* Batsmen */}
-        <div className="flex-1 min-w-0 flex gap-2">
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
           {bat1 && (
-            <div className="flex items-center gap-1 flex-1 min-w-0">
-              <span className="text-amber-400 text-[9px] flex-shrink-0">★</span>
-              <span className="font-bold text-white text-[11px] flex-1 truncate">{bat1.player?.name ?? "—"}</span>
-              <span className="text-white font-bold text-[11px] flex-shrink-0 ml-1">{bat1.runs}</span>
-              <span className="text-white/40 text-[10px] flex-shrink-0">({bat1.balls})</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[8px] font-black bg-amber-400 text-black px-1 py-0.5 rounded leading-none flex-shrink-0">S</span>
+              <span className="font-bold text-white text-[11px] flex-1 truncate min-w-0">{bat1.player?.name ?? "—"}</span>
+              <span className="text-white font-black text-[12px] flex-shrink-0 ml-1 tabular-nums">{bat1.runs}</span>
+              <span className="text-white/40 text-[10px] flex-shrink-0 tabular-nums">({bat1.balls})</span>
             </div>
           )}
-          {bat2 && (
-            <div className="flex items-center gap-1 flex-1 min-w-0 border-l border-white/5 pl-2">
-              <span className="font-semibold text-white/75 text-[11px] flex-1 truncate">{bat2.player?.name ?? "—"}</span>
-              <span className="text-white/70 font-bold text-[11px] flex-shrink-0 ml-1">{bat2.runs}</span>
-              <span className="text-white/30 text-[10px] flex-shrink-0">({bat2.balls})</span>
+          {bat2 ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[8px] font-black bg-white/15 text-white/60 px-1 py-0.5 rounded leading-none flex-shrink-0">NS</span>
+              <span className="font-semibold text-white/80 text-[11px] flex-1 truncate min-w-0">{bat2.player?.name ?? "—"}</span>
+              <span className="text-white/70 font-bold text-[11px] flex-shrink-0 ml-1 tabular-nums">{bat2.runs}</span>
+              <span className="text-white/30 text-[10px] flex-shrink-0 tabular-nums">({bat2.balls})</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-black bg-white/10 text-white/30 px-1 py-0.5 rounded leading-none flex-shrink-0">NS</span>
+              <span className="text-white/25 text-[11px] italic">Waiting...</span>
             </div>
           )}
         </div>
@@ -896,13 +902,18 @@ export default function MatchDetail() {
   const inn2 = scorecard?.innings?.find((i: SplInnings) => i.inningsNumber === 2);
   const activeInnings: SplInnings | undefined = scorecard?.innings?.find((i: SplInnings) => i.status === "in_progress");
 
-  // Current batsmen on crease (not out, from active innings balls)
+  // Current batsmen on crease — last ball's batsmanId = current striker
+  const lastBallBatsmanId = activeInnings?.balls?.length
+    ? activeInnings.balls[activeInnings.balls.length - 1].batsmanId
+    : null;
   const notOutBatsmen = activeInnings
     ? activeInnings.batsmenStats.filter(s => !s.isOut).sort((a, b) => {
-      const aLast = activeInnings.balls.filter(bl => bl.batsmanId === a.playerId).length;
-      const bLast = activeInnings.balls.filter(bl => bl.batsmanId === b.playerId).length;
-      return bLast - aLast;
-    }).slice(0, 2)
+        if (a.playerId === lastBallBatsmanId) return -1;
+        if (b.playerId === lastBallBatsmanId) return 1;
+        const aLast = activeInnings.balls.filter(bl => bl.batsmanId === a.playerId).length;
+        const bLast = activeInnings.balls.filter(bl => bl.batsmanId === b.playerId).length;
+        return bLast - aLast;
+      }).slice(0, 2)
     : [];
 
   const currentBowler = activeInnings && activeInnings.balls.length > 0
