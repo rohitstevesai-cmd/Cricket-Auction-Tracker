@@ -95,89 +95,123 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
   notOutBatsmen: any[];
   currentBowler: any;
 }) {
-  const bat1 = notOutBatsmen[0];
-  const bat2 = notOutBatsmen[1];
+  const bat1 = notOutBatsmen[0]; // striker
+  const bat2 = notOutBatsmen[1]; // non-striker
   const totalBalls = activeInnings.oversCompleted * 6 + activeInnings.ballsCurrentOver;
   const crr = totalBalls > 0 ? (activeInnings.totalRuns / (totalBalls / 6)).toFixed(2) : "0.00";
+  const sr1 = bat1 && bat1.balls > 0 ? ((bat1.runs / bat1.balls) * 100).toFixed(0) : "—";
+  const sr2 = bat2 && bat2.balls > 0 ? ((bat2.runs / bat2.balls) * 100).toFixed(0) : "—";
+  const teamColor = activeInnings.battingTeam?.color || "#3b82f6";
 
   return (
     <div className="rounded-xl overflow-hidden border border-white/10 mb-3" style={{
-      background: "linear-gradient(135deg, #0d1b2a 0%, #0a1628 100%)",
+      background: "linear-gradient(160deg, #0c1a2e 0%, #081220 100%)",
     }}>
-      {/* Row 1: Logo + Batsmen names + runs */}
-      <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1.5 border-b border-white/5">
-        {/* Team logo */}
-        <div className="flex-shrink-0">
-          {activeInnings.battingTeam?.logo ? (
-            <img src={activeInnings.battingTeam.logo} alt="" className="w-7 h-7 object-contain rounded" />
-          ) : (
-            <div className="w-7 h-7 rounded-full border border-white/20" style={{ background: activeInnings.battingTeam?.color || "#3b82f6" }} />
-          )}
-        </div>
-
-        {/* Batsmen */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1">
-          {bat1 && (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[8px] font-black bg-amber-400 text-black px-1 py-0.5 rounded leading-none flex-shrink-0">S</span>
-              <span className="font-bold text-white text-[11px] flex-1 truncate min-w-0">{bat1.player?.name ?? "—"}</span>
-              <span className="text-white font-black text-[12px] flex-shrink-0 ml-1 tabular-nums">{bat1.runs}</span>
-              <span className="text-white/40 text-[10px] flex-shrink-0 tabular-nums">({bat1.balls})</span>
+      {/* ── Header: Team + Score ── */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/8"
+        style={{ background: "rgba(255,255,255,0.03)" }}>
+        {activeInnings.battingTeam?.logo ? (
+          <img src={activeInnings.battingTeam.logo} alt="" className="w-6 h-6 object-contain rounded flex-shrink-0" />
+        ) : (
+          <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: teamColor }} />
+        )}
+        <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest truncate flex-1">
+          {activeInnings.battingTeam?.name ?? "Batting"}
+        </span>
+        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+          <span className="font-heading text-[22px] font-black text-white leading-none tabular-nums">
+            {activeInnings.totalRuns}/{activeInnings.totalWickets}
+          </span>
+          <div className="text-right leading-tight">
+            <div className="text-white/45 text-[10px] tabular-nums">
+              Ov {activeInnings.oversCompleted}.{activeInnings.ballsCurrentOver}
             </div>
-          )}
-          {bat2 ? (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-[8px] font-black bg-white/15 text-white/60 px-1 py-0.5 rounded leading-none flex-shrink-0">NS</span>
-              <span className="font-semibold text-white/80 text-[11px] flex-1 truncate min-w-0">{bat2.player?.name ?? "—"}</span>
-              <span className="text-white/70 font-bold text-[11px] flex-shrink-0 ml-1 tabular-nums">{bat2.runs}</span>
-              <span className="text-white/30 text-[10px] flex-shrink-0 tabular-nums">({bat2.balls})</span>
+            <div className="text-[10px] font-bold" style={{ color: teamColor }}>
+              CRR {crr}
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-black bg-white/10 text-white/30 px-1 py-0.5 rounded leading-none flex-shrink-0">NS</span>
-              <span className="text-white/25 text-[11px] italic">Waiting...</span>
+          </div>
+          {activeInnings.target != null && (
+            <div className="ml-1 text-[11px] font-black text-amber-400 leading-tight text-right">
+              Need<br/>{Math.max(0, activeInnings.target - activeInnings.totalRuns)}
             </div>
           )}
         </div>
       </div>
 
-      {/* Row 2: Score + divider + Bowler + balls */}
-      <div className="flex items-center gap-0 px-3 py-2">
-        {/* Score block */}
-        <div className="flex items-center gap-2 flex-shrink-0 pr-3 border-r border-white/10">
-          <span className="font-heading text-xl font-black text-white leading-none">{activeInnings.totalRuns}/{activeInnings.totalWickets}</span>
-          <div className="text-[10px] text-white/40 leading-tight">
-            <div>Ov {activeInnings.oversCompleted}.{activeInnings.ballsCurrentOver}</div>
-            <div>CRR {crr}</div>
-          </div>
-          {activeInnings.target != null && (
-            <div className="text-[10px] text-primary font-bold leading-tight">
-              Need<br/>{Math.max(0, activeInnings.target - activeInnings.totalRuns)}
-            </div>
-          )}
+      {/* ── Batsmen Rows ── */}
+      <div className="px-3 py-2 border-b border-white/5">
+        {/* Column headers */}
+        <div className="flex items-center mb-1">
+          <div className="w-3 flex-shrink-0" />
+          <div className="flex-1 min-w-0" />
+          <div className="w-8 text-right text-[9px] text-white/25 uppercase tracking-wide flex-shrink-0">R</div>
+          <div className="w-8 text-right text-[9px] text-white/25 uppercase tracking-wide flex-shrink-0">B</div>
+          <div className="w-10 text-right text-[9px] text-white/25 uppercase tracking-wide flex-shrink-0">SR</div>
         </div>
 
-        {/* Bowler + current over balls */}
-        <div className="flex-1 min-w-0 pl-3">
-          {currentBowler ? (
-            <>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[10px] flex-shrink-0">🎳</span>
-                <span className="font-bold text-white/85 text-[11px] truncate flex-1">{currentBowler.player?.name?.split(" ").slice(-1)[0] ?? "—"}</span>
-                <span className="text-white/45 text-[10px] flex-shrink-0 ml-1">{fmtBowlerOvers(currentBowler.balls)}-{currentBowler.wickets}-{currentBowler.runs}</span>
+        {/* Striker row */}
+        {bat1 ? (
+          <div className="flex items-center gap-1.5 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }}>
+            {/* Pulsing red ball = ON STRIKE */}
+            <div className="w-3 flex-shrink-0 flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            </div>
+            <span className="font-bold text-white text-[12px] flex-1 min-w-0 truncate">
+              {bat1.player?.name ?? "—"}
+              <span className="text-red-400 ml-0.5">*</span>
+            </span>
+            <span className="w-8 text-right font-black text-white text-[13px] tabular-nums flex-shrink-0">{bat1.runs}</span>
+            <span className="w-8 text-right text-white/45 text-[11px] tabular-nums flex-shrink-0">({bat1.balls})</span>
+            <span className="w-10 text-right text-amber-400 text-[10px] font-bold tabular-nums flex-shrink-0">{sr1}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 py-1">
+            <div className="w-3 flex-shrink-0" />
+            <span className="text-white/25 text-[11px] italic">Waiting...</span>
+          </div>
+        )}
+
+        {/* Non-striker row */}
+        {bat2 ? (
+          <div className="flex items-center gap-1.5 py-1">
+            <div className="w-3 flex-shrink-0 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-white/15" />
+            </div>
+            <span className="font-medium text-white/65 text-[12px] flex-1 min-w-0 truncate">{bat2.player?.name ?? "—"}</span>
+            <span className="w-8 text-right text-white/60 text-[12px] tabular-nums flex-shrink-0">{bat2.runs}</span>
+            <span className="w-8 text-right text-white/30 text-[11px] tabular-nums flex-shrink-0">({bat2.balls})</span>
+            <span className="w-10 text-right text-white/25 text-[10px] tabular-nums flex-shrink-0">{sr2}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 py-1">
+            <div className="w-3 flex-shrink-0" />
+            <span className="text-white/20 text-[11px] italic">New batsman...</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bowler + This Over ── */}
+      <div className="flex items-center gap-2 px-3 py-2">
+        {currentBowler ? (
+          <>
+            <span className="text-[10px] flex-shrink-0">🎳</span>
+            <span className="font-bold text-white/80 text-[11px] flex-shrink-0 max-w-[80px] truncate">
+              {currentBowler.player?.name?.split(" ").slice(-1)[0] ?? "—"}
+            </span>
+            <span className="text-white/35 text-[10px] flex-shrink-0 tabular-nums">
+              {fmtBowlerOvers(currentBowler.balls)}-{currentBowler.wickets}-{currentBowler.runs}
+            </span>
+            {activeInnings.currentOverBalls.length > 0 && (
+              <div className="ml-auto flex gap-1 flex-wrap justify-end">
+                {activeInnings.currentOverBalls.slice(-6).map(b => (
+                  <BallDot key={b.id} ball={b} small />
+                ))}
               </div>
-              {activeInnings.currentOverBalls.length > 0 && (
-                <div className="flex gap-1 flex-wrap">
-                  {activeInnings.currentOverBalls.slice(-6).map(b => (
-                    <BallDot key={b.id} ball={b} small />
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <span className="text-white/25 text-[11px] pl-1">Waiting for bowler</span>
-          )}
-        </div>
+            )}
+          </>
+        ) : (
+          <span className="text-white/25 text-[11px]">Waiting for bowler...</span>
+        )}
       </div>
     </div>
   );
