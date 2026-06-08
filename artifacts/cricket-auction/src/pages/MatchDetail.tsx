@@ -468,8 +468,8 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
                 wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}
               />
               <ReferenceLine y={50} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="prob" stroke={t2Color} dot={false} strokeWidth={2} name="prob" />
-              <Line type="monotone" dataKey="prob2" stroke={t1Color} dot={false} strokeWidth={2} name="prob2" />
+              <Line type="monotone" dataKey="prob" stroke={(inn2.winProb ?? 50) >= 50 ? "#22c55e" : "#ef4444"} dot={false} strokeWidth={2.5} name="prob" />
+              <Line type="monotone" dataKey="prob2" stroke={(inn2.winProb ?? 50) < 50 ? "#22c55e" : "#ef4444"} dot={false} strokeWidth={2.5} name="prob2" />
             </LineChart>
           </ResponsiveContainer>
         </div>
