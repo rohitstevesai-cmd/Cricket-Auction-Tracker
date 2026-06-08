@@ -195,8 +195,8 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
         {currentBowler ? (
           <>
             <span className="text-[10px] flex-shrink-0">🎳</span>
-            <span className="font-bold text-white/80 text-[11px] flex-shrink-0 max-w-[80px] truncate">
-              {currentBowler.player?.name?.split(" ").slice(-1)[0] ?? "—"}
+            <span className="font-bold text-white/80 text-[11px] flex-shrink-0 max-w-[120px] truncate">
+              {currentBowler.player?.name ?? "—"}
             </span>
             <span className="text-white/35 text-[10px] flex-shrink-0 tabular-nums">
               {fmtBowlerOvers(currentBowler.balls)}-{currentBowler.wickets}-{currentBowler.runs}
@@ -361,26 +361,54 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
 
   return (
     <div className="space-y-4">
-      {/* Run Rate Chart */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-3">
-          Over-by-Over Run Rate · {inn1.battingTeam?.name}
-        </p>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={inn1.overHistory} barSize={16}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="over" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={24} />
-            <RTooltip
-              contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: "rgba(255,255,255,0.7)" }}
-              formatter={(v: any, n: any) => [`${v} runs`, `Over ${n}`]}
-            />
-            {avgRR > 0 && <ReferenceLine y={avgRR} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" label={{ value: `Avg ${avgRR}`, fill: "rgba(255,255,255,0.3)", fontSize: 9 }} />}
-            <Bar dataKey="runs" fill={t1Color} radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Run Rate Chart — both innings */}
+      {(() => {
+        const t1Name = inn1.battingTeam?.name ?? "Team 1";
+        const t2Name = inn2?.battingTeam?.name ?? "Team 2";
+        const maxOv = Math.max(
+          inn1.overHistory.length > 0 ? inn1.overHistory[inn1.overHistory.length - 1].over : 0,
+          inn2 && inn2.overHistory.length > 0 ? inn2.overHistory[inn2.overHistory.length - 1].over : 0,
+        );
+        const rrMerged: any[] = [];
+        for (let i = 1; i <= maxOv; i++) {
+          rrMerged.push({
+            over: i,
+            [t1Name]: inn1.overHistory.find((o: any) => o.over === i)?.runs ?? null,
+            ...(inn2 ? { [t2Name]: inn2.overHistory.find((o: any) => o.over === i)?.runs ?? null } : {}),
+          });
+        }
+        return (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-1">
+              Over-by-Over Run Rate
+            </p>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex items-center gap-1 text-[10px] text-white/50">
+                <span className="w-3 h-2 rounded-sm inline-block" style={{ background: t1Color }} /> {t1Name}
+              </span>
+              {inn2 && (
+                <span className="flex items-center gap-1 text-[10px] text-white/50">
+                  <span className="w-3 h-2 rounded-sm inline-block" style={{ background: t2Color }} /> {t2Name}
+                </span>
+              )}
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={rrMerged} barSize={inn2 ? 10 : 16} barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="over" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={24} />
+                <RTooltip
+                  contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "rgba(255,255,255,0.7)" }}
+                  formatter={(v: any, name: any) => [`${v} runs`, name]}
+                />
+                <Bar dataKey={t1Name} fill={t1Color} radius={[3, 3, 0, 0]} />
+                {inn2 && <Bar dataKey={t2Name} fill={t2Color} radius={[3, 3, 0, 0]} />}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
 
       {/* Worm Chart */}
       {maxOver > 0 && (
@@ -400,16 +428,16 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
         </div>
       )}
 
-      {/* Win Probability Chart */}
+      {/* Win Probability Chart — both teams */}
       {inn2 && inn2.winProbHistory.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4">
           <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-3">
-            Win Probability · {inn2.battingTeam?.name} (Batting)
+            Win Probability
           </p>
           <div className="flex items-center gap-4 mb-3">
             <div className="flex-1">
-              <div className="flex justify-between text-[10px] text-white/40 mb-1">
-                <span>{inn2.battingTeam?.name}</span>
+              <div className="flex justify-between text-[10px] mb-1">
+                <span className="font-bold" style={{ color: t2Color }}>{inn2.battingTeam?.name}</span>
                 <span className="font-bold text-white text-sm">{inn2.winProb ?? 50}%</span>
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -423,20 +451,25 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
             </div>
             <div className="text-[11px] text-white/30">vs</div>
             <div className="text-right text-[11px]">
-              <div className="text-white/40">{inn1.battingTeam?.name}</div>
+              <div className="font-bold" style={{ color: t1Color }}>{inn1.battingTeam?.name}</div>
               <div className="font-bold text-white">{100 - (inn2.winProb ?? 50)}%</div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={120}>
-            <LineChart data={inn2.winProbHistory}>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={inn2.winProbHistory.map((d: any) => ({ ...d, prob2: 100 - d.prob }))}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
               <XAxis dataKey="over" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={28}
                 tickFormatter={(v) => `${v}%`} />
               <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
-                formatter={(v: any) => [`${v}%`, "Win Prob"]} />
+                formatter={(v: any, name: any) => [`${v}%`, name === "prob" ? (inn2.battingTeam?.name ?? "Team 2") : (inn1.battingTeam?.name ?? "Team 1")]} />
+              <Legend
+                formatter={(value) => value === "prob" ? inn2.battingTeam?.name ?? "Team 2" : inn1.battingTeam?.name ?? "Team 1"}
+                wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}
+              />
               <ReferenceLine y={50} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="prob" stroke={t2Color} dot={false} strokeWidth={2} />
+              <Line type="monotone" dataKey="prob" stroke={t2Color} dot={false} strokeWidth={2} name="prob" />
+              <Line type="monotone" dataKey="prob2" stroke={t1Color} dot={false} strokeWidth={2} name="prob2" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -481,6 +514,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   // New bowler (end of over)
   const [showNewBowler, setShowNewBowler] = useState(false);
   const [newBowlerId, setNewBowlerId] = useState("");
+
+  // No Ball modal
+  const [showNoBallModal, setShowNoBallModal] = useState(false);
+  const [noBallRuns, setNoBallRuns] = useState(0);
 
   // Start innings state
   const [battingTeamId, setBattingTeamId] = useState("");
@@ -804,7 +841,6 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: "Wide", type: "wide", extras: 1 },
-            { label: "No Ball", type: "noball", extras: 1 },
             { label: "Bye", type: "bye", extras: 1 },
             { label: "Leg Bye", type: "legbye", extras: 1 },
           ].map(({ label, type, extras }) => (
@@ -813,6 +849,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
               {label}
             </button>
           ))}
+          <button onClick={() => { setNoBallRuns(0); setShowNoBallModal(true); }}
+            className="h-10 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 text-[11px] font-bold text-orange-400 border border-orange-500/20 transition-all">
+            No Ball
+          </button>
         </div>
         {/* Actions */}
         <div className="flex gap-2">
@@ -858,6 +898,40 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 border-white/10 text-white/60" onClick={() => setShowWicketModal(false)}>Cancel</Button>
                 <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleWicket}>Confirm Out</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* No Ball Modal */}
+      <AnimatePresence>
+        {showNoBallModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 px-4 pb-4 sm:pb-0">
+            <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              className="w-full max-w-sm bg-[#0f172a] border border-white/10 rounded-2xl p-5 space-y-4">
+              <h3 className="font-heading text-lg text-orange-400 uppercase">No Ball — Runs off Bat</h3>
+              <p className="text-[11px] text-white/40">Select runs scored by the batsman on this no ball (1 extra will be added automatically)</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map(r => (
+                  <button key={r} onClick={() => setNoBallRuns(r)}
+                    className={`h-12 rounded-xl font-heading text-xl transition-all active:scale-95 ${noBallRuns === r
+                      ? "bg-orange-500 text-white"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
+                    {r === 0 ? "·" : r}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 border-white/10 text-white/60"
+                  onClick={() => setShowNoBallModal(false)}>Cancel</Button>
+                <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={async () => {
+                  setShowNoBallModal(false);
+                  await handleBall(noBallRuns, 1, "noball");
+                }}>
+                  Confirm — {noBallRuns} + 1 Nb
+                </Button>
               </div>
             </motion.div>
           </motion.div>
