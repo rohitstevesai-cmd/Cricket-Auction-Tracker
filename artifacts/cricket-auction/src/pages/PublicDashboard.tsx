@@ -8,7 +8,7 @@ import { PlayerCard } from "@/components/PlayerCard";
 import { PlayerDetailModal } from "@/components/PlayerDetailModal";
 import { TeamCard } from "@/components/TeamCard";
 import { Input } from "@/components/ui/input";
-import { Search, Star, Trophy, Crown, Shield, CalendarDays, Zap, CheckCircle2 } from "lucide-react";
+import { Search, Star, Trophy, Crown, Shield, CalendarDays, Zap, CheckCircle2, Medal, TrendingUp, IndianRupee } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMatches, SplMatch } from "@/hooks/useMatches";

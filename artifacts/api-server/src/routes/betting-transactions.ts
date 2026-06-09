@@ -155,4 +155,18 @@ router.put("/betting/admin/users/:id/balance", async (req, res) => {
   }
 });
 
+// ── GET /betting/leaderboard ─────────────────────────────────────────────────
+// Public — returns all users ranked by balance (no sensitive data)
+router.get("/betting/leaderboard", async (_req, res) => {
+  try {
+    const users = await db
+      .select({ id: bettingUsersTable.id, name: bettingUsersTable.name, balance: bettingUsersTable.balance })
+      .from(bettingUsersTable)
+      .orderBy(desc(bettingUsersTable.balance));
+    res.json(users);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch leaderboard" });
+  }
+});
+
 export default router;
