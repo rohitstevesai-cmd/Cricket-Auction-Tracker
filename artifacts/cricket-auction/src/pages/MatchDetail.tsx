@@ -7,6 +7,7 @@ import { useScorecard, SplInnings, SplBall, BatsmanStat, BowlerStat } from "@/ho
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, LineChart, Line, Legend, ReferenceLine,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import { ArrowLeft, Zap, Trophy, RotateCcw, CheckCircle2, ChevronDown, Youtube } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -340,6 +341,256 @@ function InningsScorecard({ inn, matchOvers }: { inn: SplInnings; matchOvers: nu
   );
 }
 
+// ── Team Comparison Panel ─────────────────────────────────────────────────────
+function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: SplInnings; matchOvers: number }) {
+  const [tab, setTab] = useState<"phase" | "dna" | "breakdown">("phase");
+
+  const t1Color = inn1.battingTeam?.color ?? "#3b82f6";
+  const t2Color = inn2.battingTeam?.color ?? "#f59e0b";
+  const t1Name = inn1.battingTeam?.name ?? "Team 1";
+  const t2Name = inn2.battingTeam?.name ?? "Team 2";
+
+  const balls1 = inn1.balls ?? [];
+  const balls2 = inn2.balls ?? [];
+
+  // ── Phase helpers ──
+  const phaseRuns = (balls: any[], fromOv: number, toOv: number) =>
+    balls.filter(b => b.overNumber + 1 >= fromOv && b.overNumber + 1 <= toOv)
+      .reduce((a, b) => a + (b.runsOffBat ?? 0) + (b.extras ?? 0), 0);
+  const phaseWkts = (balls: any[], fromOv: number, toOv: number) =>
+    balls.filter(b => b.overNumber + 1 >= fromOv && b.overNumber + 1 <= toOv && b.isWicket).length;
+
+  const pp = matchOvers >= 6 ? 6 : matchOvers;
+  const mid = matchOvers > 6 ? Math.min(15, matchOvers) : 6;
+
+  const phases = [
+    { label: "Powerplay", sub: `Ov 1–${pp}`, t1r: phaseRuns(balls1, 1, pp), t1w: phaseWkts(balls1, 1, pp), t2r: phaseRuns(balls2, 1, pp), t2w: phaseWkts(balls2, 1, pp) },
+    { label: "Middle", sub: `Ov ${pp + 1}–${mid}`, t1r: phaseRuns(balls1, pp + 1, mid), t1w: phaseWkts(balls1, pp + 1, mid), t2r: phaseRuns(balls2, pp + 1, mid), t2w: phaseWkts(balls2, pp + 1, mid) },
+    { label: "Death", sub: `Ov ${mid + 1}–${matchOvers}`, t1r: phaseRuns(balls1, mid + 1, matchOvers), t1w: phaseWkts(balls1, mid + 1, matchOvers), t2r: phaseRuns(balls2, mid + 1, matchOvers), t2w: phaseWkts(balls2, mid + 1, matchOvers) },
+  ].filter(p => p.t1r > 0 || p.t2r > 0);
+
+  const phaseChartData = phases.map(p => ({ name: p.label, [t1Name]: p.t1r, [t2Name]: p.t2r }));
+
+  // ── DNA helpers ──
+  const dna = (balls: any[], inn: SplInnings) => {
+    const legal = balls.filter(b => b.extrasType !== "wide" && b.extrasType !== "noball");
+    const fours = balls.filter(b => b.runsOffBat === 4).length;
+    const sixes = balls.filter(b => b.runsOffBat === 6).length;
+    const dots = legal.filter(b => (b.runsOffBat ?? 0) === 0).length;
+    const totalLegal = legal.length || 1;
+    const extras = balls.reduce((a: number, b: any) => a + (b.extras ?? 0), 0);
+    const sr = totalLegal > 0 ? Math.round((inn.totalRuns / totalLegal) * 100) : 0;
+    return { fours, sixes, dots, dotPct: Math.round((dots / totalLegal) * 100), extras, sr };
+  };
+
+  const d1 = dna(balls1, inn1);
+  const d2 = dna(balls2, inn2);
+
+  // Radar data — normalise to 0-100 scale
+  const normalise = (v: number, max: number) => max > 0 ? Math.round((v / max) * 100) : 0;
+  const radarData = [
+    { metric: "Strike Rate", t1: normalise(d1.sr, Math.max(d1.sr, d2.sr) || 1), t2: normalise(d2.sr, Math.max(d1.sr, d2.sr) || 1) },
+    { metric: "Sixes", t1: normalise(d1.sixes, Math.max(d1.sixes, d2.sixes) || 1), t2: normalise(d2.sixes, Math.max(d1.sixes, d2.sixes) || 1) },
+    { metric: "Fours", t1: normalise(d1.fours, Math.max(d1.fours, d2.fours) || 1), t2: normalise(d2.fours, Math.max(d1.fours, d2.fours) || 1) },
+    { metric: "Total Runs", t1: normalise(inn1.totalRuns, Math.max(inn1.totalRuns, inn2.totalRuns) || 1), t2: normalise(inn2.totalRuns, Math.max(inn1.totalRuns, inn2.totalRuns) || 1) },
+    { metric: "Dot Free%", t1: 100 - d1.dotPct, t2: 100 - d2.dotPct },
+    { metric: "Wickets Saved", t1: normalise(10 - inn1.totalWickets, 10), t2: normalise(10 - inn2.totalWickets, 10) },
+  ];
+
+  // ── Breakdown bars ──
+  const breakdownCats = [
+    { label: "Fours 🏏", t1v: d1.fours, t2v: d2.fours },
+    { label: "Sixes 💥", t1v: d1.sixes, t2v: d2.sixes },
+    { label: "Extras", t1v: d1.extras, t2v: d2.extras },
+    { label: "Dot balls", t1v: d1.dots, t2v: d2.dots },
+  ];
+
+  const tabs = [
+    { key: "phase", label: "📊 Phases" },
+    { key: "dna", label: "🕸 Team DNA" },
+    { key: "breakdown", label: "⚡ Breakdown" },
+  ] as const;
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Team Comparison</p>
+        {/* Legend */}
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-[10px] text-white/55">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: t1Color }} /> {t1Name}
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-white/55">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: t2Color }} /> {t2Name}
+          </span>
+        </div>
+      </div>
+
+      {/* Tab pills */}
+      <div className="flex gap-1.5 mb-4">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1 text-[10px] font-bold rounded-full transition-all border ${
+              tab === t.key
+                ? "bg-primary/20 border-primary/50 text-primary"
+                : "border-white/10 text-white/35 hover:text-white/60"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {/* ── TAB 1: Phase Scoring ── */}
+        {tab === "phase" && (
+          <motion.div key="phase" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            {phases.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart data={phaseChartData} barSize={18} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} axisLine={false} tickLine={false} width={24} />
+                    <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, name: any) => [`${v} runs`, name]} />
+                    <Bar dataKey={t1Name} fill={t1Color} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey={t2Name} fill={t2Color} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                {/* Phase detail cards */}
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {phases.map(p => {
+                    const t1Leads = p.t1r >= p.t2r;
+                    return (
+                      <div key={p.label} className="bg-black/20 rounded-lg p-2 text-center border border-white/5">
+                        <p className="text-[9px] text-white/35 uppercase tracking-wide mb-1">{p.label}</p>
+                        <p className="text-[9px] text-white/25 mb-1.5">{p.sub}</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="text-right">
+                            <div className={`text-[13px] font-black tabular-nums ${t1Leads ? "text-white" : "text-white/40"}`}>{p.t1r}</div>
+                            <div className="text-[9px] text-white/30">{p.t1w}W</div>
+                          </div>
+                          <div className="text-white/20 text-[9px]">vs</div>
+                          <div className="text-left">
+                            <div className={`text-[13px] font-black tabular-nums ${!t1Leads ? "text-white" : "text-white/40"}`}>{p.t2r}</div>
+                            <div className="text-[9px] text-white/30">{p.t2w}W</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-white/25 text-xs text-center py-8">Both innings need at least 1 over</p>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── TAB 2: Team DNA Radar ── */}
+        {tab === "dna" && (
+          <motion.div key="dna" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 9 }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                <Radar name={t1Name} dataKey="t1" stroke={t1Color} fill={t1Color} fillOpacity={0.18} strokeWidth={2} />
+                <Radar name={t2Name} dataKey="t2" stroke={t2Color} fill={t2Color} fillOpacity={0.18} strokeWidth={2} />
+                <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                  formatter={(v: any, name: any) => [`${v}`, name]} />
+              </RadarChart>
+            </ResponsiveContainer>
+            {/* Actual value cards */}
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {[
+                { label: "Strike Rate", t1v: d1.sr, t2v: d2.sr, suffix: "" },
+                { label: "Boundaries", t1v: d1.fours + d1.sixes, t2v: d2.fours + d2.sixes, suffix: "" },
+                { label: "Dot Ball%", t1v: d1.dotPct, t2v: d2.dotPct, suffix: "%" },
+                { label: "Extras", t1v: d1.extras, t2v: d2.extras, suffix: "" },
+              ].map(m => {
+                const t1Leads = m.label === "Dot Ball%" ? m.t1v <= m.t2v : m.t1v >= m.t2v;
+                return (
+                  <div key={m.label} className="bg-black/20 rounded-lg p-2 border border-white/5 flex items-center justify-between">
+                    <span className="text-[9px] text-white/35 uppercase tracking-wide">{m.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-bold tabular-nums ${t1Leads ? "" : "text-white/40"}`} style={t1Leads ? { color: t1Color } : {}}>{m.t1v}{m.suffix}</span>
+                      <span className="text-white/20 text-[9px]">|</span>
+                      <span className={`text-[11px] font-bold tabular-nums ${!t1Leads ? "" : "text-white/40"}`} style={!t1Leads ? { color: t2Color } : {}}>{m.t2v}{m.suffix}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── TAB 3: Scoring Breakdown ── */}
+        {tab === "breakdown" && (
+          <motion.div key="breakdown" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            <div className="space-y-3">
+              {breakdownCats.map(cat => {
+                const total = Math.max(cat.t1v + cat.t2v, 1);
+                const t1Pct = Math.round((cat.t1v / total) * 100);
+                const t2Pct = 100 - t1Pct;
+                const t1Leads = cat.label === "Dot balls" ? cat.t1v <= cat.t2v : cat.t1v >= cat.t2v;
+                return (
+                  <div key={cat.label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[11px] font-bold tabular-nums ${t1Leads ? "" : "text-white/40"}`} style={t1Leads ? { color: t1Color } : {}}>{cat.t1v}</span>
+                      <span className="text-[9px] text-white/40 uppercase tracking-wide">{cat.label}</span>
+                      <span className={`text-[11px] font-bold tabular-nums ${!t1Leads ? "" : "text-white/40"}`} style={!t1Leads ? { color: t2Color } : {}}>{cat.t2v}</span>
+                    </div>
+                    <div className="flex h-3 rounded-full overflow-hidden gap-px">
+                      <motion.div
+                        className="rounded-l-full"
+                        style={{ backgroundColor: t1Color, opacity: t1Leads ? 1 : 0.45 }}
+                        animate={{ width: `${t1Pct}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                      <motion.div
+                        className="rounded-r-full"
+                        style={{ backgroundColor: t2Color, opacity: !t1Leads ? 1 : 0.45 }}
+                        animate={{ width: `${t2Pct}%` }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Total runs comparison bar */}
+              <div className="pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[13px] font-black" style={{ color: t1Color }}>{inn1.totalRuns}/{inn1.totalWickets}</span>
+                  <span className="text-[9px] text-white/40 uppercase tracking-widest">Total Score</span>
+                  <span className="text-[13px] font-black" style={{ color: t2Color }}>{inn2.totalRuns}/{inn2.totalWickets}</span>
+                </div>
+                <div className="flex h-4 rounded-full overflow-hidden gap-px">
+                  {(() => {
+                    const total = Math.max(inn1.totalRuns + inn2.totalRuns, 1);
+                    const p1 = Math.round((inn1.totalRuns / total) * 100);
+                    const p2 = 100 - p1;
+                    return (
+                      <>
+                        <motion.div className="rounded-l-full" style={{ backgroundColor: t1Color }} animate={{ width: `${p1}%` }} transition={{ duration: 0.6 }} />
+                        <motion.div className="rounded-r-full" style={{ backgroundColor: t2Color }} animate={{ width: `${p2}%` }} transition={{ duration: 0.6 }} />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Charts ───────────────────────────────────────────────────────────────────
 function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnings; matchOvers: number }) {
   if (!inn1) return null;
@@ -435,6 +686,9 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* ── Team Comparison Panel ── */}
+      {inn2 && <TeamComparison inn1={inn1} inn2={inn2} matchOvers={matchOvers} />}
 
       {/* Win Probability Chart — both teams */}
       {inn2 && inn2.winProbHistory.length > 0 && (
