@@ -323,6 +323,22 @@ router.post("/matches/:id/innings", async (req, res) => {
   }
 });
 
+// ── PATCH /innings/:id/lineup ─────────────────────────────────────────────────
+router.patch("/innings/:id/lineup", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { strikerId, nonStrikerId, bowlerId } = req.body;
+    const updates: any = {};
+    if (strikerId !== undefined) updates.currentStrikerId = strikerId || null;
+    if (nonStrikerId !== undefined) updates.currentNonStrikerId = nonStrikerId || null;
+    if (bowlerId !== undefined) updates.currentBowlerId = bowlerId || null;
+    const [updated] = await db.update(splInningsTable).set(updates).where(eq(splInningsTable.id, id)).returning();
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update lineup" });
+  }
+});
+
 // ── PUT /innings/:id/complete ─────────────────────────────────────────────────
 router.put("/innings/:id/complete", async (req, res) => {
   try {

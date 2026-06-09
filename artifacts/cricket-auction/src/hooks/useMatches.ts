@@ -111,6 +111,9 @@ export interface SplInnings {
   target: number | null;
   status: string;
   createdAt: string;
+  currentStrikerId: string | null;
+  currentNonStrikerId: string | null;
+  currentBowlerId: string | null;
   battingTeam: TeamInfo | null;
   bowlingTeam: TeamInfo | null;
   balls: SplBall[];
@@ -235,5 +238,18 @@ export function useScorecard(matchId: string | undefined, pollMs = 3000) {
     await refresh();
   };
 
-  return { scorecard, loading, refresh, startInnings, addBall, undoBall, completeInnings, updateMatch };
+  const updateLineup = async (inningsId: string, body: {
+    strikerId?: string | null;
+    nonStrikerId?: string | null;
+    bowlerId?: string | null;
+  }) => {
+    try {
+      await apiFetch(`/innings/${inningsId}/lineup`, { method: "PATCH", body: JSON.stringify(body) });
+      refresh();
+    } catch (e) {
+      console.error("Failed to update lineup", e);
+    }
+  };
+
+  return { scorecard, loading, refresh, startInnings, addBall, undoBall, completeInnings, updateMatch, updateLineup };
 }

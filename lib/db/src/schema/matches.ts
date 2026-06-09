@@ -27,6 +27,9 @@ export const splInningsTable = pgTable("spl_innings", {
   ballsCurrentOver: integer("balls_current_over").notNull().default(0),
   target: integer("target"),
   status: text("status").notNull().default("in_progress"),
+  currentStrikerId: text("current_striker_id"),
+  currentNonStrikerId: text("current_non_striker_id"),
+  currentBowlerId: text("current_bowler_id"),
   createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
 });
 

@@ -90,18 +90,41 @@ function BallDot({ ball, small }: { ball: SplBall; small?: boolean }) {
 }
 
 // ── Live Score Ticker ─────────────────────────────────────────────────────────
-function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
+function LiveScoreTicker({ activeInnings, bat1, bat2, strikerId, lastOutName, currentBowler, bowlerNameOverride }: {
   activeInnings: SplInnings;
-  notOutBatsmen: any[];
-  currentBowler: any;
+  bat1: any | null;
+  bat2: any | null;
+  strikerId: string | null;
+  lastOutName?: string | null;
+  currentBowler: any | null;
+  bowlerNameOverride?: string | null;
 }) {
-  const bat1 = notOutBatsmen[0]; // striker
-  const bat2 = notOutBatsmen[1]; // non-striker
+  const bat1IsStriker = !!(bat1 && bat1.playerId === strikerId);
+  const bat2IsStriker = !!(bat2 && bat2.playerId === strikerId);
   const totalBalls = activeInnings.oversCompleted * 6 + activeInnings.ballsCurrentOver;
   const crr = totalBalls > 0 ? (activeInnings.totalRuns / (totalBalls / 6)).toFixed(2) : "0.00";
-  const sr1 = bat1 && bat1.balls > 0 ? ((bat1.runs / bat1.balls) * 100).toFixed(0) : "—";
-  const sr2 = bat2 && bat2.balls > 0 ? ((bat2.runs / bat2.balls) * 100).toFixed(0) : "—";
   const teamColor = activeInnings.battingTeam?.color || "#3b82f6";
+
+  const BatRow = ({ stat, isStriker, strikethrough }: { stat: any; isStriker: boolean; strikethrough?: boolean }) => {
+    const srStr = stat.balls > 0 ? ((stat.runs / stat.balls) * 100).toFixed(0) : "—";
+    return (
+      <div className={`flex items-center gap-1.5 py-1 rounded-lg transition-colors ${isStriker ? "" : ""}`}
+        style={isStriker ? { background: "rgba(255,255,255,0.04)" } : {}}>
+        <div className="w-3 flex-shrink-0 flex items-center justify-center">
+          {isStriker
+            ? <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            : <div className="w-1.5 h-1.5 rounded-full bg-white/15" />}
+        </div>
+        <span className={`text-[12px] flex-1 min-w-0 truncate ${isStriker ? "font-bold text-white" : "font-medium text-white/65"} ${strikethrough ? "line-through opacity-40" : ""}`}>
+          {stat.player?.name ?? "—"}
+          {isStriker && !strikethrough && <span className="text-red-400 ml-0.5">*</span>}
+        </span>
+        <span className={`w-8 text-right tabular-nums flex-shrink-0 ${isStriker ? "font-black text-white text-[13px]" : "text-white/60 text-[12px]"}`}>{stat.runs}</span>
+        <span className="w-8 text-right text-white/45 text-[11px] tabular-nums flex-shrink-0">({stat.balls})</span>
+        <span className={`w-10 text-right text-[10px] font-bold tabular-nums flex-shrink-0 ${isStriker ? "text-amber-400" : "text-white/25"}`}>{srStr}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-xl overflow-hidden border border-white/10 mb-3" style={{
@@ -140,7 +163,6 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
 
       {/* ── Batsmen Rows ── */}
       <div className="px-3 py-2 border-b border-white/5">
-        {/* Column headers */}
         <div className="flex items-center mb-1">
           <div className="w-3 flex-shrink-0" />
           <div className="flex-1 min-w-0" />
@@ -149,45 +171,25 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
           <div className="w-10 text-right text-[9px] text-white/25 uppercase tracking-wide flex-shrink-0">SR</div>
         </div>
 
-        {/* Striker row */}
-        {bat1 ? (
-          <div className="flex items-center gap-1.5 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }}>
-            {/* Pulsing red ball = ON STRIKE */}
-            <div className="w-3 flex-shrink-0 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            </div>
-            <span className="font-bold text-white text-[12px] flex-1 min-w-0 truncate">
-              {bat1.player?.name ?? "—"}
-              <span className="text-red-400 ml-0.5">*</span>
-            </span>
-            <span className="w-8 text-right font-black text-white text-[13px] tabular-nums flex-shrink-0">{bat1.runs}</span>
-            <span className="w-8 text-right text-white/45 text-[11px] tabular-nums flex-shrink-0">({bat1.balls})</span>
-            <span className="w-10 text-right text-amber-400 text-[10px] font-bold tabular-nums flex-shrink-0">{sr1}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 py-1">
-            <div className="w-3 flex-shrink-0" />
-            <span className="text-white/25 text-[11px] italic">Waiting...</span>
-          </div>
-        )}
+        {/* Row 1 */}
+        {bat1
+          ? <BatRow stat={bat1} isStriker={bat1IsStriker} />
+          : lastOutName
+            ? <div className="flex items-center gap-1.5 py-1">
+                <div className="w-3 flex-shrink-0 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-red-500/40" /></div>
+                <span className="text-white/30 text-[12px] line-through flex-1 truncate">{lastOutName}</span>
+                <span className="text-[10px] text-white/25 italic">Out</span>
+              </div>
+            : <div className="flex items-center gap-1.5 py-1">
+                <div className="w-3" /><span className="text-white/25 text-[11px] italic">Waiting...</span>
+              </div>}
 
-        {/* Non-striker row */}
-        {bat2 ? (
-          <div className="flex items-center gap-1.5 py-1">
-            <div className="w-3 flex-shrink-0 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-white/15" />
-            </div>
-            <span className="font-medium text-white/65 text-[12px] flex-1 min-w-0 truncate">{bat2.player?.name ?? "—"}</span>
-            <span className="w-8 text-right text-white/60 text-[12px] tabular-nums flex-shrink-0">{bat2.runs}</span>
-            <span className="w-8 text-right text-white/30 text-[11px] tabular-nums flex-shrink-0">({bat2.balls})</span>
-            <span className="w-10 text-right text-white/25 text-[10px] tabular-nums flex-shrink-0">{sr2}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 py-1">
-            <div className="w-3 flex-shrink-0" />
-            <span className="text-white/20 text-[11px] italic">New batsman...</span>
-          </div>
-        )}
+        {/* Row 2 */}
+        {bat2
+          ? <BatRow stat={bat2} isStriker={bat2IsStriker} />
+          : <div className="flex items-center gap-1.5 py-1">
+              <div className="w-3" /><span className="text-white/20 text-[11px] italic">New batsman...</span>
+            </div>}
       </div>
 
       {/* ── Bowler + This Over ── */}
@@ -208,6 +210,12 @@ function LiveScoreTicker({ activeInnings, notOutBatsmen, currentBowler }: {
                 ))}
               </div>
             )}
+          </>
+        ) : bowlerNameOverride ? (
+          <>
+            <span className="text-[10px] flex-shrink-0">🎳</span>
+            <span className="font-bold text-white/80 text-[11px] flex-shrink-0 max-w-[120px] truncate">{bowlerNameOverride}</span>
+            <span className="text-white/35 text-[10px] flex-shrink-0">0-0-0</span>
           </>
         ) : (
           <span className="text-white/25 text-[11px]">Waiting for bowler...</span>
@@ -487,9 +495,10 @@ interface ScoringPanelProps {
   undoBall: (inningsId: string) => Promise<void>;
   completeInnings: (inningsId: string) => Promise<void>;
   updateMatch: (body: any) => Promise<void>;
+  updateLineup: (inningsId: string, body: any) => Promise<void>;
 }
 
-function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, completeInnings, updateMatch }: ScoringPanelProps) {
+function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, completeInnings, updateMatch, updateLineup }: ScoringPanelProps) {
   const { players, teams } = useData();
 
   const match = scorecard?.match;
@@ -782,29 +791,34 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div>
             <label className="text-[9px] text-white/40 uppercase tracking-wider mb-1 block">⭐ Striker</label>
-            <Select value={strikerId} onValueChange={setStrikerId}>
+            <Select value={strikerId} onValueChange={(v) => { setStrikerId(v); if (activeInnings) updateLineup(activeInnings.id, { strikerId: v }); }}>
               <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="On strike" /></SelectTrigger>
-              <SelectContent>{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <label className="text-[9px] text-white/40 uppercase tracking-wider mb-1 block">Non-Striker</label>
-            <Select value={nonStrikerId} onValueChange={setNonStrikerId}>
+            <Select value={nonStrikerId} onValueChange={(v) => { setNonStrikerId(v); if (activeInnings) updateLineup(activeInnings.id, { nonStrikerId: v }); }}>
               <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="Non-striker" /></SelectTrigger>
-              <SelectContent>{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <label className="text-[9px] text-white/40 uppercase tracking-wider mb-1 block">Bowler</label>
-            <Select value={bowlerId} onValueChange={setBowlerId}>
+            <Select value={bowlerId} onValueChange={(v) => { setBowlerId(v); if (activeInnings) updateLineup(activeInnings.id, { bowlerId: v }); }}>
               <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="Bowler" /></SelectTrigger>
-              <SelectContent>{bowlingPlayers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="max-h-52 overflow-y-auto">{bowlingPlayers.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
         {strikerId && nonStrikerId && (
           <button
-            onClick={() => { const t = strikerId; setStrikerId(nonStrikerId); setNonStrikerId(t); }}
+            onClick={() => {
+              const t = strikerId;
+              setStrikerId(nonStrikerId);
+              setNonStrikerId(t);
+              if (activeInnings) updateLineup(activeInnings.id, { strikerId: nonStrikerId, nonStrikerId: strikerId });
+            }}
             className="text-[10px] text-white/40 hover:text-white/70 flex items-center gap-1 transition-colors"
           >
             <RotateCcw className="w-3 h-3" /> Rotate Strike
@@ -1104,7 +1118,8 @@ function PerformanceHighlights({ inn1, inn2, t1, t2 }: { inn1?: SplInnings; inn2
 // ── Main MatchDetail Page ─────────────────────────────────────────────────────
 export default function MatchDetail() {
   const { id } = useParams<{ id: string }>();
-  const { scorecard, loading, startInnings, addBall, undoBall, completeInnings, updateMatch } = useScorecard(id, 2000);
+  const { scorecard, loading, startInnings, addBall, undoBall, completeInnings, updateMatch, updateLineup } = useScorecard(id, 2000);
+  const { players: allPlayers } = useData();
   const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState<"scorecard" | "scoring">("scorecard");
 
@@ -1117,23 +1132,57 @@ export default function MatchDetail() {
   const inn2 = scorecard?.innings?.find((i: SplInnings) => i.inningsNumber === 2);
   const activeInnings: SplInnings | undefined = scorecard?.innings?.find((i: SplInnings) => i.status === "in_progress");
 
-  // Current batsmen on crease — last ball's batsmanId = current striker
-  const lastBallBatsmanId = activeInnings?.balls?.length
-    ? activeInnings.balls[activeInnings.balls.length - 1].batsmanId
-    : null;
-  const notOutBatsmen = activeInnings
-    ? activeInnings.batsmenStats.filter(s => !s.isOut).sort((a, b) => {
-        if (a.playerId === lastBallBatsmanId) return -1;
-        if (b.playerId === lastBallBatsmanId) return 1;
-        const aLast = activeInnings.balls.filter(bl => bl.batsmanId === a.playerId).length;
-        const bLast = activeInnings.balls.filter(bl => bl.batsmanId === b.playerId).length;
-        return bLast - aLast;
-      }).slice(0, 2)
-    : [];
+  // ── Ticker data: stable entry-order batsmen + strikerId from DB ──
+  const hasBalls = (activeInnings?.balls?.length ?? 0) > 0;
+  const notOutStats = activeInnings?.batsmenStats.filter(s => !s.isOut) ?? [];
 
-  const currentBowler = activeInnings && activeInnings.balls.length > 0
-    ? activeInnings.bowlerStats.find(s => s.playerId === activeInnings.balls[activeInnings.balls.length - 1].bowlerId)
+  // strikerId: prefer DB value; fall back to last ball's batsman
+  const dbStrikerId = activeInnings?.currentStrikerId ?? null;
+  const lastBallStrikerId = hasBalls
+    ? activeInnings!.balls[activeInnings!.balls.length - 1].batsmanId
     : null;
+  const tickerStrikerId = dbStrikerId ?? lastBallStrikerId;
+
+  // bat1 / bat2 in STABLE entry order (no sorting by strike — only red dot moves)
+  let tickerBat1: any = null;
+  let tickerBat2: any = null;
+
+  if (hasBalls && notOutStats.length > 0) {
+    // Use ball-data order as entry order
+    tickerBat1 = notOutStats[0];
+    tickerBat2 = notOutStats[1] ?? null;
+  } else if (!hasBalls && activeInnings?.currentStrikerId) {
+    // No balls yet — build synthetic from DB lineup + global player list
+    const findP = (pid: string) => allPlayers.find((p: any) => p.id === pid);
+    const sp = findP(activeInnings.currentStrikerId);
+    const nsp = activeInnings.currentNonStrikerId ? findP(activeInnings.currentNonStrikerId) : null;
+    if (sp) tickerBat1 = { player: sp, runs: 0, balls: 0, fours: 0, sixes: 0, sr: 0, isOut: false, playerId: sp.id };
+    if (nsp) tickerBat2 = { player: nsp, runs: 0, balls: 0, fours: 0, sixes: 0, sr: 0, isOut: false, playerId: nsp.id };
+  }
+
+  // lastOutName: when exactly 1 not-out left (wicket fell, new player not yet in)
+  const lastOutName: string | null = (hasBalls && notOutStats.length < 2)
+    ? (activeInnings!.batsmenStats.filter(s => s.isOut).slice(-1)[0]?.player?.name ?? null)
+    : null;
+
+  // currentBowler: from bowl stats or DB bowlerId
+  const dbBowlerId = activeInnings?.currentBowlerId ?? null;
+  const lastBallBowlerId = hasBalls
+    ? activeInnings!.balls[activeInnings!.balls.length - 1].bowlerId
+    : null;
+  const activeBowlerId = dbBowlerId ?? lastBallBowlerId;
+  const currentBowler = activeInnings && activeBowlerId
+    ? (activeInnings.bowlerStats.find(s => s.playerId === activeBowlerId) ?? null)
+    : null;
+
+  // Bowler name override when no ball data yet
+  const bowlerNameOverride: string | null =
+    (!hasBalls && activeInnings?.currentBowlerId)
+      ? (allPlayers.find((p: any) => p.id === activeInnings.currentBowlerId)?.name ?? null)
+      : null;
+
+  // Show ticker when we have at least bat1
+  const showTicker = !!activeInnings && !!tickerBat1;
 
   if (loading) {
     return (
@@ -1264,17 +1313,21 @@ export default function MatchDetail() {
           </div>
         </div>
 
-        {/* Live Score Ticker (ongoing) */}
-        {activeInnings && notOutBatsmen.length > 0 && (
+        {/* Live Score Ticker */}
+        {showTicker && (
           <LiveScoreTicker
-            activeInnings={activeInnings}
-            notOutBatsmen={notOutBatsmen}
+            activeInnings={activeInnings!}
+            bat1={tickerBat1}
+            bat2={tickerBat2}
+            strikerId={tickerStrikerId}
+            lastOutName={lastOutName}
             currentBowler={currentBowler}
+            bowlerNameOverride={bowlerNameOverride}
           />
         )}
 
         {/* YouTube Live Stream Card */}
-        {match.youtubeUrl && match.status === "ongoing" && (
+        {match.youtubeUrl && (
           <YouTubeCard url={match.youtubeUrl} />
         )}
 
@@ -1319,6 +1372,7 @@ export default function MatchDetail() {
                 undoBall={undoBall}
                 completeInnings={completeInnings}
                 updateMatch={updateMatch}
+                updateLineup={updateLineup}
               />
             )}
           </>
@@ -1340,6 +1394,7 @@ export default function MatchDetail() {
                   undoBall={undoBall}
                   completeInnings={completeInnings}
                   updateMatch={updateMatch}
+                  updateLineup={updateLineup}
                 />
               </div>
             )}
