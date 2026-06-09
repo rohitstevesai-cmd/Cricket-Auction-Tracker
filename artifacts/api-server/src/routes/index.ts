@@ -7,6 +7,7 @@ import bettingTransactionsRouter from "./betting-transactions";
 import bettingMatchesRouter from "./betting-matches";
 import uploadRouter from "./upload";
 import splMatchesRouter from "./spl-matches";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(bettingAuthRouter);
 router.use(bettingTransactionsRouter);
 router.use(bettingMatchesRouter);
 router.use(splMatchesRouter);
+router.use(settingsRouter);
 
 export default router;

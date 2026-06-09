@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Footer } from "@/components/Footer";
 import { useData } from "@/context/DataContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft, Star, Zap, CalendarDays, CheckCircle2, Trophy } from "lucide-react";
+import { Shield, Plus, Edit2, Trash2, Settings, ArrowLeft, Star, Zap, CalendarDays, CheckCircle2, Trophy, Megaphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlayerForm } from "@/components/PlayerForm";
 import { TeamForm } from "@/components/TeamForm";
@@ -67,7 +67,42 @@ export default function ManagementDashboard() {
     try { await updateMatch(id, { status: status as any }); toast.success(`Status → ${status}`); }
     catch (e: any) { toast.error(e.message); }
   };
-  
+
+  // ── Marketing Headline ──────────────────────────────────────────────────────
+  const [headline, setHeadline] = useState<string | null>(null);
+  const [headlineDraft, setHeadlineDraft] = useState("");
+  const [headlineSaving, setHeadlineSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/spl-settings/marketing", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => {
+        setHeadline(d.headline ?? null);
+        setHeadlineDraft(d.headline ?? "");
+      })
+      .catch(() => {});
+  }, []);
+
+  const saveHeadline = async (value: string | null) => {
+    setHeadlineSaving(true);
+    try {
+      const r = await fetch("/api/spl-settings/marketing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ headline: value }),
+      });
+      if (!r.ok) throw new Error("Save failed");
+      const d = await r.json();
+      setHeadline(d.headline ?? null);
+      setHeadlineDraft(d.headline ?? "");
+      toast.success(value ? "Marketing headline updated!" : "Headline removed — ticker hidden.");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setHeadlineSaving(false);
+    }
+  };
+
   // Modals state
   const [playerFormOpen, setPlayerFormOpen] = useState(false);
   const [teamFormOpen, setTeamFormOpen] = useState(false);
@@ -155,6 +190,10 @@ export default function ManagementDashboard() {
               <Zap className="w-3 h-3 flex-shrink-0" />
               <span className="sm:hidden">Match</span>
               <span className="hidden sm:inline">Matches</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="font-heading text-[11px] sm:text-sm tracking-wide flex-1 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-1 justify-center">
+              <Settings className="w-3 h-3 flex-shrink-0" />
+              <span>Settings</span>
             </TabsTrigger>
           </TabsList>
 
@@ -419,6 +458,78 @@ export default function ManagementDashboard() {
                   </div>
                 );
               })}
+            </div>
+          </TabsContent>
+
+          {/* ── Settings Tab ──────────────────────────────────────────── */}
+          <TabsContent value="settings" className="mt-0">
+            <div className="mb-4">
+              <h2 className="text-lg sm:text-2xl font-heading uppercase tracking-wide text-white leading-tight">Settings</h2>
+              <p className="text-muted-foreground text-xs mt-0.5 hidden sm:block">Manage app-wide display settings</p>
+            </div>
+
+            {/* Marketing Headline Card */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-5 max-w-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <Megaphone className="w-4 h-4 text-orange-400" />
+                <h3 className="font-heading text-sm uppercase tracking-wide text-white">Navbar Marketing Ticker</h3>
+              </div>
+              <p className="text-white/50 text-xs mb-4 ml-6">
+                Text scrolling in the Navbar between the SPL logo and Privacy Policy.
+                Leave blank to hide the ticker entirely.
+              </p>
+
+              {/* Live preview */}
+              {headline && (
+                <div className="mb-4 bg-black/30 border border-white/10 rounded-lg px-4 py-2 flex items-center gap-2 overflow-hidden">
+                  <span className="text-white/30 text-[10px] uppercase tracking-wider flex-shrink-0">Live:</span>
+                  <span
+                    className="text-xs font-bold truncate"
+                    style={{
+                      background: "linear-gradient(90deg,#f97316,#fbbf24,#f97316)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    {headline}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={headlineDraft}
+                  onChange={e => setHeadlineDraft(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !headlineSaving && saveHeadline(headlineDraft)}
+                  placeholder="e.g. 🏏 SPL Season 2 — Auction LIVE this Sunday!"
+                  className="flex-1 bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary placeholder:text-white/20 transition-colors"
+                />
+                <Button
+                  onClick={() => saveHeadline(headlineDraft)}
+                  disabled={headlineSaving || headlineDraft === (headline ?? "")}
+                  size="sm"
+                  className="bg-primary text-black font-bold h-9 px-4"
+                >
+                  {headlineSaving ? "Saving…" : "Save"}
+                </Button>
+                {headline && (
+                  <Button
+                    onClick={() => saveHeadline(null)}
+                    disabled={headlineSaving}
+                    size="sm"
+                    variant="outline"
+                    className="border-red-500/50 text-red-400 hover:bg-red-500/10 h-9 px-3"
+                    title="Remove ticker"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-white/30 text-[10px] mt-2 ml-1">
+                Press Enter or click Save. Click the red × to remove the ticker from the Navbar.
+              </p>
             </div>
           </TabsContent>
         </Tabs>
