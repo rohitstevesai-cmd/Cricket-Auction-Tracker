@@ -5,6 +5,7 @@ const BASE = "/api";
 async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
+    cache: "no-store",
     ...options,
   });
   if (!res.ok) {
@@ -173,7 +174,7 @@ export function useMatches() {
   return { matches, loading, refresh, createMatch, updateMatch, deleteMatch };
 }
 
-export function useScorecard(matchId: string | undefined, pollMs = 3000) {
+export function useScorecard(matchId: string | undefined, pollMs = 2000) {
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
   const [loading, setLoading] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -245,7 +246,7 @@ export function useScorecard(matchId: string | undefined, pollMs = 3000) {
   }) => {
     try {
       await apiFetch(`/innings/${inningsId}/lineup`, { method: "PATCH", body: JSON.stringify(body) });
-      refresh();
+      await refresh();
     } catch (e) {
       console.error("Failed to update lineup", e);
     }
