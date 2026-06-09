@@ -900,6 +900,8 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       setWicketType("bowled");
       setFielderId("");
       setStrikerId(""); // batter is out
+      // Push cleared striker to DB immediately so user side removes the dismissed batter
+      if (activeInnings) updateLineup(activeInnings.id, { strikerId: null });
 
       const inn = result?.innings;
       if (result?.autoCompleted) {
@@ -1261,6 +1263,8 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
               <Button className="w-full bg-primary" onClick={() => {
                 if (newBatsmanId) {
                   setStrikerId(newBatsmanId);
+                  // Push new striker to DB immediately → user side sees instantly
+                  if (activeInnings) updateLineup(activeInnings.id, { strikerId: newBatsmanId });
                   setNewBatsmanId("");
                   setShowNewBatsman(false);
                 } else toast.error("Select a batsman");
@@ -1285,10 +1289,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
               <Button className="w-full bg-primary" onClick={() => {
                 if (newBowlerId) {
                   setBowlerId(newBowlerId);
+                  // Push new bowler to DB immediately → user side sees instantly
+                  if (activeInnings) updateLineup(activeInnings.id, { bowlerId: newBowlerId });
                   setNewBowlerId("");
                   setShowNewBowler(false);
-                  // Check if also need new batsman
-                  if (showNewBatsman) { /* modal already queued */ }
                 } else toast.error("Select a bowler");
               }}>Set Bowler</Button>
             </motion.div>
