@@ -78,15 +78,15 @@ function SlideItem({ match }: { match: SplMatch }) {
         <div className="w-px h-4 bg-white/15 flex-shrink-0" />
 
         {/* Team 1 */}
-        <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0" style={{ maxWidth: "28%" }}>
           <span
-            className="text-[10px] sm:text-xs font-heading font-bold tracking-wide"
+            className="text-[10px] sm:text-xs font-heading font-bold tracking-wide truncate"
             style={{ color: c1 }}
           >
-            {shortName(t1?.name ?? "T1")}
+            {t1?.name ?? "Team 1"}
           </span>
           {team1Score && (
-            <span className="text-[11px] sm:text-sm font-bold text-white font-heading leading-none">
+            <span className="text-[11px] sm:text-sm font-bold text-white font-heading leading-none flex-shrink-0">
               {team1Score}
             </span>
           )}
@@ -96,15 +96,15 @@ function SlideItem({ match }: { match: SplMatch }) {
         <span className="text-[8px] font-bold text-white/25 flex-shrink-0">vs</span>
 
         {/* Team 2 */}
-        <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0" style={{ maxWidth: "28%" }}>
           <span
-            className="text-[10px] sm:text-xs font-heading font-bold tracking-wide"
+            className="text-[10px] sm:text-xs font-heading font-bold tracking-wide truncate"
             style={{ color: c2 }}
           >
-            {shortName(t2?.name ?? "T2")}
+            {t2?.name ?? "Team 2"}
           </span>
           {team2Score && (
-            <span className="text-[11px] sm:text-sm font-bold text-white font-heading leading-none">
+            <span className="text-[11px] sm:text-sm font-bold text-white font-heading leading-none flex-shrink-0">
               {team2Score}
             </span>
           )}
