@@ -601,18 +601,21 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       const inn = result?.innings;
       const totalRuns = runsOffBat + extras;
 
-      // rotate strike on odd runs off bat (not wide)
-      if (extrasType !== "wide" && extrasType !== "noball" && totalRuns % 2 === 1) {
+      // rotate strike on odd runs off bat (not wide/noball)
+      const rotateOnRun = extrasType !== "wide" && extrasType !== "noball" && totalRuns % 2 === 1;
+      if (rotateOnRun) {
         setStrikerId(prevNonStriker);
         setNonStrikerId(prevStriker);
+        if (activeInnings) updateLineup(activeInnings.id, { strikerId: prevNonStriker, nonStrikerId: prevStriker });
       }
 
       // end of over
       if (inn && inn.ballsCurrentOver === 0 && inn.oversCompleted > prevOvers) {
-        // Rotate strike at end of over (if even runs)
+        // Rotate strike at end of over only if even runs (odd already rotated above)
         if (totalRuns % 2 === 0) {
           setStrikerId(prevNonStriker);
           setNonStrikerId(prevStriker);
+          if (activeInnings) updateLineup(activeInnings.id, { strikerId: prevNonStriker, nonStrikerId: prevStriker });
         }
         setShowNewBowler(true);
       }
@@ -822,14 +825,14 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
             <label className="text-[9px] text-white/40 uppercase tracking-wider mb-1 block">⭐ Striker</label>
             <Select value={strikerId} onValueChange={(v) => { setStrikerId(v); if (activeInnings) updateLineup(activeInnings.id, { strikerId: v }); }}>
               <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="On strike" /></SelectTrigger>
-              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id) && p.id !== nonStrikerId).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <label className="text-[9px] text-white/40 uppercase tracking-wider mb-1 block">Non-Striker</label>
             <Select value={nonStrikerId} onValueChange={(v) => { setNonStrikerId(v); if (activeInnings) updateLineup(activeInnings.id, { nonStrikerId: v }); }}>
               <SelectTrigger className="bg-black/30 border-white/10 h-8 text-xs"><SelectValue placeholder="Non-striker" /></SelectTrigger>
-              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id)).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="max-h-52 overflow-y-auto">{battingPlayers.filter(p => !outIds.has(p.id) && p.id !== strikerId).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
@@ -1176,17 +1179,26 @@ export default function MatchDetail() {
   let tickerBat1: any = null;
   let tickerBat2: any = null;
 
+  const makeSyntheticBat = (pid: string) => {
+    const p = allPlayers.find((pl: any) => pl.id === pid);
+    return p ? { player: p, runs: 0, balls: 0, fours: 0, sixes: 0, sr: 0, isOut: false, playerId: pid } : null;
+  };
+
   if (hasBalls && notOutStats.length > 0) {
-    // Use ball-data order as entry order
     tickerBat1 = notOutStats[0];
-    tickerBat2 = notOutStats[1] ?? null;
+    if (notOutStats.length >= 2) {
+      tickerBat2 = notOutStats[1];
+    } else {
+      // Only 1 batsman has hit balls yet; find the other from DB lineup
+      const facedId = notOutStats[0].playerId;
+      const dbIds = [activeInnings?.currentStrikerId, activeInnings?.currentNonStrikerId].filter(Boolean);
+      const otherId = dbIds.find(pid => pid !== facedId) ?? null;
+      tickerBat2 = otherId ? makeSyntheticBat(otherId) : null;
+    }
   } else if (!hasBalls && activeInnings?.currentStrikerId) {
-    // No balls yet — build synthetic from DB lineup + global player list
-    const findP = (pid: string) => allPlayers.find((p: any) => p.id === pid);
-    const sp = findP(activeInnings.currentStrikerId);
-    const nsp = activeInnings.currentNonStrikerId ? findP(activeInnings.currentNonStrikerId) : null;
-    if (sp) tickerBat1 = { player: sp, runs: 0, balls: 0, fours: 0, sixes: 0, sr: 0, isOut: false, playerId: sp.id };
-    if (nsp) tickerBat2 = { player: nsp, runs: 0, balls: 0, fours: 0, sixes: 0, sr: 0, isOut: false, playerId: nsp.id };
+    // No balls yet — build both from DB lineup
+    tickerBat1 = makeSyntheticBat(activeInnings.currentStrikerId);
+    tickerBat2 = activeInnings.currentNonStrikerId ? makeSyntheticBat(activeInnings.currentNonStrikerId) : null;
   }
 
   // lastOutName: when exactly 1 not-out left (wicket fell, new player not yet in)
