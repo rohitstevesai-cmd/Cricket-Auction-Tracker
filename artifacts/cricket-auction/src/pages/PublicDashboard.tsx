@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { motion, AnimatePresence } from "framer-motion";
 import { useMatches, SplMatch } from "@/hooks/useMatches";
 import { Link } from "wouter";
+import { UpcomingMatchBanner } from "@/components/UpcomingMatchBanner";
 
 function MatchCard({ match }: { match: SplMatch }) {
   const inn = (match as any).innings ?? [];
@@ -185,6 +186,9 @@ export default function PublicDashboard() {
       <Navbar />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+
+        {/* ── Upcoming Match Banner ──────────────────────────────── */}
+        <UpcomingMatchBanner matches={matches} />
 
         {/* ── Header + Tabs ──────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 sm:mb-8">
