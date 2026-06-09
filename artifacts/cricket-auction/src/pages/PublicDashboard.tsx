@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMatches, SplMatch } from "@/hooks/useMatches";
 import { Link } from "wouter";
 import { UpcomingMatchBanner } from "@/components/UpcomingMatchBanner";
+import { LiveScoreTicker } from "@/components/LiveScoreTicker";
 
 function MatchCard({ match }: { match: SplMatch }) {
   const inn = (match as any).innings ?? [];
@@ -186,6 +187,9 @@ export default function PublicDashboard() {
       <Navbar />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+
+        {/* ── Live Score Ticker ──────────────────────────────────── */}
+        <LiveScoreTicker matches={matches} />
 
         {/* ── Upcoming Match Banner ──────────────────────────────── */}
         <UpcomingMatchBanner matches={matches} />
