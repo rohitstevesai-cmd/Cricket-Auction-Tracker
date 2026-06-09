@@ -343,7 +343,7 @@ function InningsScorecard({ inn, matchOvers }: { inn: SplInnings; matchOvers: nu
 
 // ── Team Comparison Panel ─────────────────────────────────────────────────────
 function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: SplInnings; matchOvers: number }) {
-  const [tab, setTab] = useState<"phase" | "dna" | "breakdown">("phase");
+  const [tab, setTab] = useState<"stars" | "dna" | "breakdown">("stars");
 
   const t1Color = inn1.battingTeam?.color ?? "#3b82f6";
   const t2Color = inn2.battingTeam?.color ?? "#f59e0b";
@@ -353,23 +353,25 @@ function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: Sp
   const balls1 = inn1.balls ?? [];
   const balls2 = inn2.balls ?? [];
 
-  // ── Phase helpers ──
-  const phaseRuns = (balls: any[], fromOv: number, toOv: number) =>
-    balls.filter(b => b.overNumber + 1 >= fromOv && b.overNumber + 1 <= toOv)
-      .reduce((a, b) => a + (b.runsOffBat ?? 0) + (b.extras ?? 0), 0);
-  const phaseWkts = (balls: any[], fromOv: number, toOv: number) =>
-    balls.filter(b => b.overNumber + 1 >= fromOv && b.overNumber + 1 <= toOv && b.isWicket).length;
+  // ── Star player helpers ──
+  const topBatter = (inn: SplInnings): BatsmanStat | null =>
+    (inn.batsmenStats ?? []).reduce((best: BatsmanStat | null, s) =>
+      !best || s.runs > best.runs || (s.runs === best.runs && s.balls < best.balls) ? s : best, null);
 
-  const pp = matchOvers >= 6 ? 6 : matchOvers;
-  const mid = matchOvers > 6 ? Math.min(15, matchOvers) : 6;
+  const topBowler = (inn: SplInnings): BowlerStat | null =>
+    (inn.bowlerStats ?? []).filter(s => s.balls > 0).reduce((best: BowlerStat | null, s) => {
+      if (!best) return s;
+      if (s.wickets > best.wickets) return s;
+      if (s.wickets === best.wickets && s.economy < best.economy) return s;
+      return best;
+    }, null);
 
-  const phases = [
-    { label: "Powerplay", sub: `Ov 1–${pp}`, t1r: phaseRuns(balls1, 1, pp), t1w: phaseWkts(balls1, 1, pp), t2r: phaseRuns(balls2, 1, pp), t2w: phaseWkts(balls2, 1, pp) },
-    { label: "Middle", sub: `Ov ${pp + 1}–${mid}`, t1r: phaseRuns(balls1, pp + 1, mid), t1w: phaseWkts(balls1, pp + 1, mid), t2r: phaseRuns(balls2, pp + 1, mid), t2w: phaseWkts(balls2, pp + 1, mid) },
-    { label: "Death", sub: `Ov ${mid + 1}–${matchOvers}`, t1r: phaseRuns(balls1, mid + 1, matchOvers), t1w: phaseWkts(balls1, mid + 1, matchOvers), t2r: phaseRuns(balls2, mid + 1, matchOvers), t2w: phaseWkts(balls2, mid + 1, matchOvers) },
-  ].filter(p => p.t1r > 0 || p.t2r > 0);
-
-  const phaseChartData = phases.map(p => ({ name: p.label, [t1Name]: p.t1r, [t2Name]: p.t2r }));
+  // t1 batted in inn1, t2 batted in inn2
+  // t2 bowled in inn1, t1 bowled in inn2
+  const t1TopBat = topBatter(inn1);
+  const t2TopBat = topBatter(inn2);
+  const t2TopBowl = topBowler(inn1); // team2 bowled in inn1
+  const t1TopBowl = topBowler(inn2); // team1 bowled in inn2
 
   // ── DNA helpers ──
   const dna = (balls: any[], inn: SplInnings) => {
@@ -406,7 +408,7 @@ function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: Sp
   ];
 
   const tabs = [
-    { key: "phase", label: "📊 Phases" },
+    { key: "stars", label: "🏆 Stars" },
     { key: "dna", label: "🕸 Team DNA" },
     { key: "breakdown", label: "⚡ Breakdown" },
   ] as const;
@@ -445,48 +447,152 @@ function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: Sp
       </div>
 
       <AnimatePresence mode="wait">
-        {/* ── TAB 1: Phase Scoring ── */}
-        {tab === "phase" && (
-          <motion.div key="phase" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-            {phases.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={phaseChartData} barSize={18} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.45)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} axisLine={false} tickLine={false} width={24} />
-                    <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any, name: any) => [`${v} runs`, name]} />
-                    <Bar dataKey={t1Name} fill={t1Color} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey={t2Name} fill={t2Color} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                {/* Phase detail cards */}
-                <div className="grid grid-cols-3 gap-2 mt-3">
-                  {phases.map(p => {
-                    const t1Leads = p.t1r >= p.t2r;
+        {/* ── TAB 1: Stars of the Match ── */}
+        {tab === "stars" && (
+          <motion.div key="stars" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            {(t1TopBat || t2TopBat) ? (
+              <div className="space-y-3">
+                {/* ── Section label ── */}
+                <p className="text-[9px] text-white/30 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-3 h-px bg-white/15 inline-block" />🏏 Top Batsman<span className="flex-1 h-px bg-white/15 inline-block" />
+                </p>
+
+                {/* Batsman duel */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* T1 top bat */}
+                  {(() => {
+                    const s = t1TopBat;
+                    const srStr = s && s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(0) : "—";
+                    const batLeads = !t2TopBat || (s?.runs ?? 0) >= (t2TopBat?.runs ?? 0);
                     return (
-                      <div key={p.label} className="bg-black/20 rounded-lg p-2 text-center border border-white/5">
-                        <p className="text-[9px] text-white/35 uppercase tracking-wide mb-1">{p.label}</p>
-                        <p className="text-[9px] text-white/25 mb-1.5">{p.sub}</p>
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="text-right">
-                            <div className={`text-[13px] font-black tabular-nums ${t1Leads ? "text-white" : "text-white/40"}`}>{p.t1r}</div>
-                            <div className="text-[9px] text-white/30">{p.t1w}W</div>
-                          </div>
-                          <div className="text-white/20 text-[9px]">vs</div>
-                          <div className="text-left">
-                            <div className={`text-[13px] font-black tabular-nums ${!t1Leads ? "text-white" : "text-white/40"}`}>{p.t2r}</div>
-                            <div className="text-[9px] text-white/30">{p.t2w}W</div>
-                          </div>
-                        </div>
+                      <div className="relative rounded-xl p-3 border overflow-hidden"
+                        style={{ borderColor: `${t1Color}30`, background: `linear-gradient(135deg, ${t1Color}12 0%, transparent 60%)` }}>
+                        {batLeads && (
+                          <div className="absolute top-2 right-2 text-[9px] font-black text-yellow-400 tracking-wide">⭐ MVP</div>
+                        )}
+                        <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: t1Color }}>{t1Name}</p>
+                        {s ? (
+                          <>
+                            <p className="text-[13px] font-bold text-white truncate leading-tight mb-1">{s.player?.name ?? "—"}</p>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="font-heading text-[28px] font-black leading-none" style={{ color: t1Color }}>{s.runs}</span>
+                              <span className="text-white/40 text-[11px]">({s.balls}b)</span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">SR {srStr}</span>
+                              {s.fours > 0 && <span className="text-[9px] bg-blue-500/15 rounded px-1.5 py-0.5 text-blue-300">{s.fours}×4</span>}
+                              {s.sixes > 0 && <span className="text-[9px] bg-purple-500/15 rounded px-1.5 py-0.5 text-purple-300">{s.sixes}×6</span>}
+                              {!s.isOut && <span className="text-[9px] bg-emerald-500/15 rounded px-1.5 py-0.5 text-emerald-400">N/O</span>}
+                            </div>
+                          </>
+                        ) : <p className="text-white/25 text-[11px] italic mt-2">No data yet</p>}
                       </div>
                     );
-                  })}
+                  })()}
+
+                  {/* T2 top bat */}
+                  {(() => {
+                    const s = t2TopBat;
+                    const srStr = s && s.balls > 0 ? ((s.runs / s.balls) * 100).toFixed(0) : "—";
+                    const batLeads = !t1TopBat || (s?.runs ?? 0) > (t1TopBat?.runs ?? 0);
+                    return (
+                      <div className="relative rounded-xl p-3 border overflow-hidden"
+                        style={{ borderColor: `${t2Color}30`, background: `linear-gradient(135deg, ${t2Color}12 0%, transparent 60%)` }}>
+                        {batLeads && (
+                          <div className="absolute top-2 right-2 text-[9px] font-black text-yellow-400 tracking-wide">⭐ MVP</div>
+                        )}
+                        <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: t2Color }}>{t2Name}</p>
+                        {s ? (
+                          <>
+                            <p className="text-[13px] font-bold text-white truncate leading-tight mb-1">{s.player?.name ?? "—"}</p>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="font-heading text-[28px] font-black leading-none" style={{ color: t2Color }}>{s.runs}</span>
+                              <span className="text-white/40 text-[11px]">({s.balls}b)</span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">SR {srStr}</span>
+                              {s.fours > 0 && <span className="text-[9px] bg-blue-500/15 rounded px-1.5 py-0.5 text-blue-300">{s.fours}×4</span>}
+                              {s.sixes > 0 && <span className="text-[9px] bg-purple-500/15 rounded px-1.5 py-0.5 text-purple-300">{s.sixes}×6</span>}
+                              {!s.isOut && <span className="text-[9px] bg-emerald-500/15 rounded px-1.5 py-0.5 text-emerald-400">N/O</span>}
+                            </div>
+                          </>
+                        ) : <p className="text-white/25 text-[11px] italic mt-2">No data yet</p>}
+                      </div>
+                    );
+                  })()}
                 </div>
-              </>
+
+                {/* ── Bowler section ── */}
+                <p className="text-[9px] text-white/30 uppercase tracking-widest flex items-center gap-1.5 pt-1">
+                  <span className="w-3 h-px bg-white/15 inline-block" />🎯 Top Bowler<span className="flex-1 h-px bg-white/15 inline-block" />
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* T1 top bowler — team1 bowled in inn2 */}
+                  {(() => {
+                    const s = t1TopBowl;
+                    const ovs = s ? `${Math.floor(s.balls / 6)}.${s.balls % 6}` : "0.0";
+                    const bowlLeads = !t2TopBowl || (s?.wickets ?? 0) > (t2TopBowl?.wickets ?? 0) ||
+                      ((s?.wickets ?? 0) === (t2TopBowl?.wickets ?? 0) && (s?.economy ?? 99) <= (t2TopBowl?.economy ?? 99));
+                    return (
+                      <div className="relative rounded-xl p-3 border overflow-hidden"
+                        style={{ borderColor: `${t1Color}30`, background: `linear-gradient(135deg, ${t1Color}12 0%, transparent 60%)` }}>
+                        {bowlLeads && s && s.wickets > 0 && (
+                          <div className="absolute top-2 right-2 text-[9px] font-black text-yellow-400 tracking-wide">⭐ MVP</div>
+                        )}
+                        <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: t1Color }}>{t1Name}</p>
+                        {s ? (
+                          <>
+                            <p className="text-[13px] font-bold text-white truncate leading-tight mb-1">{s.player?.name ?? "—"}</p>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="font-heading text-[28px] font-black leading-none" style={{ color: t1Color }}>{s.wickets}</span>
+                              <span className="text-white/40 text-[11px]">wkts</span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">Eco {s.economy.toFixed(1)}</span>
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">{ovs} ov</span>
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">{s.runs}R</span>
+                            </div>
+                          </>
+                        ) : <p className="text-white/25 text-[11px] italic mt-2">No data yet</p>}
+                      </div>
+                    );
+                  })()}
+
+                  {/* T2 top bowler — team2 bowled in inn1 */}
+                  {(() => {
+                    const s = t2TopBowl;
+                    const ovs = s ? `${Math.floor(s.balls / 6)}.${s.balls % 6}` : "0.0";
+                    const bowlLeads = !t1TopBowl || (s?.wickets ?? 0) > (t1TopBowl?.wickets ?? 0) ||
+                      ((s?.wickets ?? 0) === (t1TopBowl?.wickets ?? 0) && (s?.economy ?? 99) < (t1TopBowl?.economy ?? 99));
+                    return (
+                      <div className="relative rounded-xl p-3 border overflow-hidden"
+                        style={{ borderColor: `${t2Color}30`, background: `linear-gradient(135deg, ${t2Color}12 0%, transparent 60%)` }}>
+                        {bowlLeads && s && s.wickets > 0 && (
+                          <div className="absolute top-2 right-2 text-[9px] font-black text-yellow-400 tracking-wide">⭐ MVP</div>
+                        )}
+                        <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: t2Color }}>{t2Name}</p>
+                        {s ? (
+                          <>
+                            <p className="text-[13px] font-bold text-white truncate leading-tight mb-1">{s.player?.name ?? "—"}</p>
+                            <div className="flex items-baseline gap-1 mb-2">
+                              <span className="font-heading text-[28px] font-black leading-none" style={{ color: t2Color }}>{s.wickets}</span>
+                              <span className="text-white/40 text-[11px]">wkts</span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">Eco {s.economy.toFixed(1)}</span>
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">{ovs} ov</span>
+                              <span className="text-[9px] bg-white/8 rounded px-1.5 py-0.5 text-white/60">{s.runs}R</span>
+                            </div>
+                          </>
+                        ) : <p className="text-white/25 text-[11px] italic mt-2">No data yet</p>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             ) : (
-              <p className="text-white/25 text-xs text-center py-8">Both innings need at least 1 over</p>
+              <p className="text-white/25 text-xs text-center py-8">Match data loading...</p>
             )}
           </motion.div>
         )}
