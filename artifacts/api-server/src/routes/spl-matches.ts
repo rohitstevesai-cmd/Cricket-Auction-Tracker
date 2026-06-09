@@ -364,6 +364,18 @@ router.post("/innings/:id/balls", async (req, res) => {
     if (inn.status === "completed") return void res.status(400).json({ error: "Innings is completed" });
 
     const isLegal = extrasType !== "wide" && extrasType !== "noball";
+
+    // Guard: if 6 legal balls already bowled this over, reject until over is confirmed new
+    // (prevents race conditions from rapid clicking sending extra balls in same over)
+    const [matchRowCheck] = await db.select().from(splMatchesTable).where(eq(splMatchesTable.id, inn.matchId));
+    if (inn.ballsCurrentOver >= 6) {
+      return void res.status(400).json({ error: "Over is complete — select a new bowler before continuing" });
+    }
+    // Guard: innings overs fully bowled
+    if (inn.oversCompleted >= matchRowCheck.overs) {
+      return void res.status(400).json({ error: "All overs bowled — innings must be completed" });
+    }
+
     const totalRunsOnBall = (runsOffBat ?? 0) + (extras ?? 0);
 
     await db.insert(splBallsTable).values({

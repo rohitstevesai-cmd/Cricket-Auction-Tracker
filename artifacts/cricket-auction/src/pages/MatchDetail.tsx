@@ -943,6 +943,12 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   const [showNoBallModal, setShowNoBallModal] = useState(false);
   const [noBallRuns, setNoBallRuns] = useState(0);
 
+  // Submission guard — prevents double-click race conditions
+  const isSubmittingRef = useRef(false);
+
+  // When wicket falls on last ball of over, we need new batsman AND new bowler
+  const [pendingNewBowler, setPendingNewBowler] = useState(false);
+
   // Start innings state
   const [battingTeamId, setBattingTeamId] = useState("");
   const [bowlingTeamId, setBowlingTeamId] = useState("");
@@ -965,9 +971,15 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   const fielderOptions = bowlingPlayers;
 
   const handleBall = useCallback(async (runsOffBat: number, extras: number = 0, extrasType: string = "none") => {
+    if (isSubmittingRef.current) return; // prevent rapid double-click
     if (!activeInnings || !strikerId || !bowlerId) {
       toast.error("Select striker and bowler first"); return;
     }
+    if (showNewBowler) {
+      toast.error("Select a bowler for the new over first"); return;
+    }
+
+    isSubmittingRef.current = true;
     const prevStriker = strikerId;
     const prevNonStriker = nonStrikerId;
     const prevOvers = activeInnings.oversCompleted;
@@ -982,7 +994,7 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       const inn = result?.innings;
       const totalRuns = runsOffBat + extras;
 
-      // rotate strike on odd runs off bat (not wide/noball)
+      // rotate strike on odd runs off bat (singles, 3s — not wide/noball)
       const rotateOnRun = extrasType !== "wide" && extrasType !== "noball" && totalRuns % 2 === 1;
       if (rotateOnRun) {
         setStrikerId(prevNonStriker);
@@ -990,10 +1002,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
         if (activeInnings) updateLineup(activeInnings.id, { strikerId: prevNonStriker, nonStrikerId: prevStriker });
       }
 
-      // end of over
+      // end of over — always rotate strike (non-striker faces next over)
       if (inn && inn.ballsCurrentOver === 0 && inn.oversCompleted > prevOvers) {
-        // Rotate strike at end of over only if even runs (odd already rotated above)
         if (totalRuns % 2 === 0) {
+          // odd already rotated above; even needs rotating now
           setStrikerId(prevNonStriker);
           setNonStrikerId(prevStriker);
           if (activeInnings) updateLineup(activeInnings.id, { strikerId: prevNonStriker, nonStrikerId: prevStriker });
@@ -1006,14 +1018,19 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       }
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      isSubmittingRef.current = false;
     }
-  }, [activeInnings, strikerId, nonStrikerId, bowlerId, addBall]);
+  }, [activeInnings, strikerId, nonStrikerId, bowlerId, showNewBowler, addBall]);
 
   const handleWicket = useCallback(async () => {
+    if (isSubmittingRef.current) return; // prevent double-click
     if (!activeInnings || !strikerId || !bowlerId) {
       toast.error("Select striker and bowler first"); return;
     }
-    const prevStriker = strikerId;
+
+    isSubmittingRef.current = true;
+    const prevNonStriker = nonStrikerId;
     const prevOvers = activeInnings.oversCompleted;
 
     try {
@@ -1026,24 +1043,37 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       setShowWicketModal(false);
       setWicketType("bowled");
       setFielderId("");
-      setStrikerId(""); // batter is out
-      // Push cleared striker to DB immediately so user side removes the dismissed batter
-      if (activeInnings) updateLineup(activeInnings.id, { strikerId: null });
 
       const inn = result?.innings;
+      const overEnded = inn && inn.ballsCurrentOver === 0 && inn.oversCompleted > prevOvers;
+
       if (result?.autoCompleted) {
+        // All out — just clear the striker
+        setStrikerId("");
+        updateLineup(activeInnings.id, { strikerId: null });
         toast.success("All out! Innings completed.");
+      } else if (overEnded) {
+        // Wicket on last ball of over:
+        // - dismissed batter is out
+        // - non-striker becomes striker for the new over (end-of-over rotation)
+        // - incoming new batsman will be non-striker
+        setStrikerId(prevNonStriker);
+        setNonStrikerId(""); // new batsman replaces non-striker slot
+        updateLineup(activeInnings.id, { strikerId: prevNonStriker, nonStrikerId: null });
+        setPendingNewBowler(true); // after new batsman, show bowler modal too
+        setShowNewBatsman(true);
       } else {
-        if (inn && inn.ballsCurrentOver === 0 && inn.oversCompleted > prevOvers) {
-          setShowNewBowler(true);
-        } else {
-          setShowNewBatsman(true);
-        }
+        // Mid-over wicket: dismissed batter replaced on strike
+        setStrikerId("");
+        updateLineup(activeInnings.id, { strikerId: null });
+        setShowNewBatsman(true);
       }
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      isSubmittingRef.current = false;
     }
-  }, [activeInnings, strikerId, bowlerId, wicketType, fielderId, addBall]);
+  }, [activeInnings, strikerId, nonStrikerId, bowlerId, wicketType, fielderId, addBall]);
 
   const handleUndo = async () => {
     if (!activeInnings) return;
@@ -1167,6 +1197,8 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   // ── Active innings scoring panel ──
   if (!activeInnings) return null;
   const needsSetup = !strikerId || !nonStrikerId || !bowlerId;
+  // Block ball entry if waiting for new bowler selection (over just ended)
+  const scoringBlocked = needsSetup || showNewBowler;
 
   return (
     <div className="space-y-4">
@@ -1252,7 +1284,7 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
       )}
 
       {/* Ball entry buttons */}
-      <div className={`bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 ${needsSetup ? "opacity-50 pointer-events-none" : ""}`}>
+      <div className={`bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 ${scoringBlocked ? "opacity-50 pointer-events-none" : ""}`}>
         <p className="text-[10px] text-white/40 uppercase tracking-widest">Ball Entry</p>
         {/* Runs */}
         <div className="grid grid-cols-4 gap-2">
@@ -1346,7 +1378,7 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
             <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
               className="w-full max-w-sm bg-[#0f172a] border border-white/10 rounded-2xl p-5 space-y-4">
               <h3 className="font-heading text-lg text-orange-400 uppercase">No Ball — Runs off Bat</h3>
-              <p className="text-[11px] text-white/40">Select runs scored by the batsman on this no ball (1 extra will be added automatically)</p>
+              <p className="text-[11px] text-white/40">Select runs scored by the batsman. No automatic extra — add the penalty run manually if your rules require it.</p>
               <div className="grid grid-cols-4 gap-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7].map(r => (
                   <button key={r} onClick={() => setNoBallRuns(r)}
@@ -1362,9 +1394,9 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
                   onClick={() => setShowNoBallModal(false)}>Cancel</Button>
                 <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={async () => {
                   setShowNoBallModal(false);
-                  await handleBall(noBallRuns, 1, "noball");
+                  await handleBall(noBallRuns, 0, "noball");
                 }}>
-                  Confirm — {noBallRuns} + 1 Nb
+                  NB + {noBallRuns === 0 ? "·" : noBallRuns} runs
                 </Button>
               </div>
             </motion.div>
@@ -1379,22 +1411,39 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 px-4 pb-4 sm:pb-0">
             <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
               className="w-full max-w-sm bg-[#0f172a] border border-white/10 rounded-2xl p-5 space-y-4">
-              <h3 className="font-heading text-lg text-white uppercase">New Batsman</h3>
+              <div>
+                <h3 className="font-heading text-lg text-white uppercase">New Batsman</h3>
+                {pendingNewBowler && (
+                  <p className="text-[11px] text-yellow-400/80 mt-1">
+                    Over ended — new batsman comes in as non-striker. Select bowler next.
+                  </p>
+                )}
+              </div>
               <Select value={newBatsmanId} onValueChange={setNewBatsmanId}>
                 <SelectTrigger className="bg-black/30 border-white/10 h-9 text-sm"><SelectValue placeholder="Select new batsman" /></SelectTrigger>
                 <SelectContent>
-                  {battingPlayers.filter(p => !outIds.has(p.id) && p.id !== nonStrikerId)
+                  {battingPlayers
+                    .filter(p => !outIds.has(p.id) && p.id !== strikerId && p.id !== nonStrikerId)
                     .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button className="w-full bg-primary" onClick={() => {
-                if (newBatsmanId) {
+                if (!newBatsmanId) { toast.error("Select a batsman"); return; }
+                if (pendingNewBowler) {
+                  // End-of-over wicket: new batsman is non-striker
+                  setNonStrikerId(newBatsmanId);
+                  if (activeInnings) updateLineup(activeInnings.id, { nonStrikerId: newBatsmanId });
+                  setPendingNewBowler(false);
+                  setShowNewBatsman(false);
+                  setNewBatsmanId("");
+                  setShowNewBowler(true); // now select the new bowler
+                } else {
+                  // Mid-over wicket: new batsman takes strike
                   setStrikerId(newBatsmanId);
-                  // Push new striker to DB immediately → user side sees instantly
                   if (activeInnings) updateLineup(activeInnings.id, { strikerId: newBatsmanId });
                   setNewBatsmanId("");
                   setShowNewBatsman(false);
-                } else toast.error("Select a batsman");
+                }
               }}>Send to Crease</Button>
             </motion.div>
           </motion.div>
