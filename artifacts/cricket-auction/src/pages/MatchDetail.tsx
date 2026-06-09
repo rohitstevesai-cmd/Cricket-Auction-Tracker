@@ -939,6 +939,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   const [showNewBowler, setShowNewBowler] = useState(false);
   const [newBowlerId, setNewBowlerId] = useState("");
 
+  // Wide modal
+  const [showWideModal, setShowWideModal] = useState(false);
+  const [wideRuns, setWideRuns] = useState(1);
+
   // No Ball modal
   const [showNoBallModal, setShowNoBallModal] = useState(false);
   const [noBallRuns, setNoBallRuns] = useState(0);
@@ -1305,8 +1309,11 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
         </div>
         {/* Extras */}
         <div className="grid grid-cols-4 gap-2">
+          <button onClick={() => { setWideRuns(1); setShowWideModal(true); }}
+            className="h-10 rounded-lg bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 text-[11px] font-bold text-yellow-400 border border-yellow-500/20 transition-all">
+            Wide
+          </button>
           {[
-            { label: "Wide", type: "wide", extras: 1 },
             { label: "Bye", type: "bye", extras: 1 },
             { label: "Leg Bye", type: "legbye", extras: 1 },
           ].map(({ label, type, extras }) => (
@@ -1364,6 +1371,40 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 border-white/10 text-white/60" onClick={() => setShowWicketModal(false)}>Cancel</Button>
                 <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleWicket}>Confirm Out</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Wide Modal */}
+      <AnimatePresence>
+        {showWideModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 px-4 pb-4 sm:pb-0">
+            <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              className="w-full max-w-sm bg-[#0f172a] border border-white/10 rounded-2xl p-5 space-y-4">
+              <h3 className="font-heading text-lg text-yellow-400 uppercase">Wide — Select Runs</h3>
+              <p className="text-[11px] text-white/40">Select total runs to add for this wide delivery.</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[0, 1, 2, 3, 4, 5, 6].map(r => (
+                  <button key={r} onClick={() => setWideRuns(r)}
+                    className={`h-12 rounded-xl font-heading text-xl transition-all active:scale-95 ${wideRuns === r
+                      ? "bg-yellow-500 text-black"
+                      : "bg-white/10 text-white/70 hover:bg-white/20"}`}>
+                    {r === 0 ? "·" : r}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1 border-white/10 text-white/60"
+                  onClick={() => setShowWideModal(false)}>Cancel</Button>
+                <Button className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold" onClick={async () => {
+                  setShowWideModal(false);
+                  await handleBall(0, wideRuns, "wide");
+                }}>
+                  Wd + {wideRuns === 0 ? "·" : wideRuns} runs
+                </Button>
               </div>
             </motion.div>
           </motion.div>
