@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -514,6 +514,35 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   useEffect(() => { localStorage.setItem(`${storageKey}-striker`, strikerId); }, [storageKey, strikerId]);
   useEffect(() => { localStorage.setItem(`${storageKey}-nonstriker`, nonStrikerId); }, [storageKey, nonStrikerId]);
   useEffect(() => { localStorage.setItem(`${storageKey}-bowler`, bowlerId); }, [storageKey, bowlerId]);
+
+  // ── Sync lineup: DB ↔ localStorage on innings load ──────────────────────────
+  // DB values are source of truth; if DB is empty but localStorage has values, push them to DB
+  const lineupSyncedInningsRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeInnings || lineupSyncedInningsRef.current === activeInnings.id) return;
+    lineupSyncedInningsRef.current = activeInnings.id;
+
+    const dbS = activeInnings.currentStrikerId ?? "";
+    const dbNs = activeInnings.currentNonStrikerId ?? "";
+    const dbB = activeInnings.currentBowlerId ?? "";
+
+    // DB has values → load them into local state (DB wins)
+    if (dbS) setStrikerId(dbS);
+    if (dbNs) setNonStrikerId(dbNs);
+    if (dbB) setBowlerId(dbB);
+
+    // DB is empty but localStorage has values → push localStorage to DB immediately
+    if (!dbS || !dbNs || !dbB) {
+      const lsS = !dbS ? (localStorage.getItem(`${storageKey}-striker`) ?? "") : "";
+      const lsNs = !dbNs ? (localStorage.getItem(`${storageKey}-nonstriker`) ?? "") : "";
+      const lsB = !dbB ? (localStorage.getItem(`${storageKey}-bowler`) ?? "") : "";
+      const body: Record<string, string> = {};
+      if (lsS) body.strikerId = lsS;
+      if (lsNs) body.nonStrikerId = lsNs;
+      if (lsB) body.bowlerId = lsB;
+      if (Object.keys(body).length > 0) updateLineup(activeInnings.id, body);
+    }
+  }, [activeInnings?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pendingBallType, setPendingBallType] = useState<string | null>(null);
 
   // Wicket modal
