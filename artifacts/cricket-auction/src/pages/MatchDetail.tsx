@@ -345,8 +345,8 @@ function InningsScorecard({ inn, matchOvers }: { inn: SplInnings; matchOvers: nu
 function TeamComparison({ inn1, inn2, matchOvers }: { inn1: SplInnings; inn2: SplInnings; matchOvers: number }) {
   const [tab, setTab] = useState<"stars" | "dna" | "breakdown">("stars");
 
-  const t1Color = inn1.battingTeam?.color ?? "#3b82f6";
-  const t2Color = inn2.battingTeam?.color ?? "#f59e0b";
+  const t1Color = "#3b82f6";
+  const t2Color = "#a855f7";
   const t1Name = inn1.battingTeam?.name ?? "Team 1";
   const t2Name = inn2.battingTeam?.name ?? "Team 2";
 
@@ -722,8 +722,8 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
     wormMerged.push(entry);
   }
 
-  const t1Color = inn1.battingTeam?.color ?? "#3b82f6";
-  const t2Color = inn2?.battingTeam?.color ?? "#f59e0b";
+  const t1Color = "#3b82f6";
+  const t2Color = "#a855f7";
 
   // Average run rate line for run rate chart
   const avgRR = inn1.overHistory.length > 0
