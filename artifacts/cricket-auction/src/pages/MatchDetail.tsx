@@ -702,18 +702,24 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
   if (!inn1) return null;
 
   // Merge worm data
+  const hasInn2Worm = !!(inn2 && inn2.wormData.length > 0);
+  const inn1WormName = inn1.battingTeam?.name ?? "Team1";
+  const inn2WormName = inn2?.battingTeam?.name ?? "Team2";
   const maxOver = Math.max(
     inn1.wormData.length > 0 ? inn1.wormData[inn1.wormData.length - 1].over : 0,
-    inn2 && inn2.wormData.length > 0 ? inn2.wormData[inn2.wormData.length - 1].over : 0,
+    hasInn2Worm ? inn2!.wormData[inn2!.wormData.length - 1].over : 0,
   );
 
   const wormMerged: any[] = [];
   for (let i = 1; i <= maxOver; i++) {
-    wormMerged.push({
+    const entry: any = {
       over: i,
-      [inn1.battingTeam?.name ?? "Team1"]: inn1.wormData.find(d => d.over === i)?.runs ?? null,
-      [inn2?.battingTeam?.name ?? "Team2"]: inn2?.wormData.find(d => d.over === i)?.runs ?? null,
-    });
+      [inn1WormName]: inn1.wormData.find(d => d.over === i)?.runs ?? null,
+    };
+    if (hasInn2Worm) {
+      entry[inn2WormName] = inn2!.wormData.find(d => d.over === i)?.runs ?? null;
+    }
+    wormMerged.push(entry);
   }
 
   const t1Color = inn1.battingTeam?.color ?? "#3b82f6";
@@ -730,17 +736,22 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
       {(() => {
         const t1Name = inn1.battingTeam?.name ?? "Team 1";
         const t2Name = inn2?.battingTeam?.name ?? "Team 2";
+        const hasInn2RR = !!(inn2 && inn2.overHistory.length > 0);
         const maxOv = Math.max(
           inn1.overHistory.length > 0 ? inn1.overHistory[inn1.overHistory.length - 1].over : 0,
-          inn2 && inn2.overHistory.length > 0 ? inn2.overHistory[inn2.overHistory.length - 1].over : 0,
+          hasInn2RR ? inn2!.overHistory[inn2!.overHistory.length - 1].over : 0,
         );
+        if (maxOv === 0) return null;
         const rrMerged: any[] = [];
         for (let i = 1; i <= maxOv; i++) {
-          rrMerged.push({
+          const entry: any = {
             over: i,
-            [t1Name]: inn1.overHistory.find((o: any) => o.over === i)?.runs ?? null,
-            ...(inn2 ? { [t2Name]: inn2.overHistory.find((o: any) => o.over === i)?.runs ?? null } : {}),
-          });
+            [t1Name]: inn1.overHistory.find((o: any) => o.over === i)?.runs ?? 0,
+          };
+          if (hasInn2RR) {
+            entry[t2Name] = inn2!.overHistory.find((o: any) => o.over === i)?.runs ?? 0;
+          }
+          rrMerged.push(entry);
         }
         return (
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
@@ -751,14 +762,14 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
               <span className="flex items-center gap-1 text-[10px] text-white/50">
                 <span className="w-3 h-2 rounded-sm inline-block" style={{ background: t1Color }} /> {t1Name}
               </span>
-              {inn2 && (
+              {hasInn2RR && (
                 <span className="flex items-center gap-1 text-[10px] text-white/50">
                   <span className="w-3 h-2 rounded-sm inline-block" style={{ background: t2Color }} /> {t2Name}
                 </span>
               )}
             </div>
             <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={rrMerged} barSize={inn2 ? 10 : 16} barGap={2}>
+              <BarChart data={rrMerged} barSize={hasInn2RR ? 10 : 16} barGap={2} barCategoryGap="25%">
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="over" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={24} />
@@ -768,7 +779,7 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
                   formatter={(v: any, name: any) => [`${v} runs`, name]}
                 />
                 <Bar dataKey={t1Name} fill={t1Color} radius={[3, 3, 0, 0]} />
-                {inn2 && <Bar dataKey={t2Name} fill={t2Color} radius={[3, 3, 0, 0]} />}
+                {hasInn2RR && <Bar dataKey={t2Name} fill={t2Color} radius={[3, 3, 0, 0]} />}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -778,16 +789,26 @@ function Charts({ inn1, inn2, matchOvers }: { inn1?: SplInnings; inn2?: SplInnin
       {/* Worm Chart */}
       {maxOver > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-3">Run Progression (Worm)</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-1">Run Progression (Worm)</p>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="flex items-center gap-1 text-[10px] text-white/50">
+              <span className="w-5 h-0.5 rounded inline-block" style={{ background: t1Color }} /> {inn1WormName}
+            </span>
+            {hasInn2Worm && (
+              <span className="flex items-center gap-1 text-[10px] text-white/50">
+                <span className="w-5 h-0.5 rounded inline-block" style={{ background: t2Color }} /> {inn2WormName}
+              </span>
+            )}
+          </div>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={wormMerged}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
               <XAxis dataKey="over" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
-              <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
-              <Line type="monotone" dataKey={inn1.battingTeam?.name ?? "Team1"} stroke={t1Color} dot={false} strokeWidth={2} connectNulls />
-              {inn2 && <Line type="monotone" dataKey={inn2.battingTeam?.name ?? "Team2"} stroke={t2Color} dot={false} strokeWidth={2} connectNulls />}
+              <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: any, name: any) => [`${v} runs`, name]} />
+              <Line type="monotone" dataKey={inn1WormName} stroke={t1Color} dot={false} strokeWidth={2} connectNulls />
+              {hasInn2Worm && <Line type="monotone" dataKey={inn2WormName} stroke={t2Color} dot={false} strokeWidth={2} connectNulls />}
             </LineChart>
           </ResponsiveContainer>
         </div>
