@@ -33,6 +33,7 @@ function ballSymbol(b: SplBall): { label: string; color: string } {
   if (b.isWicket) return { label: "W", color: "bg-red-500 text-white" };
   if (b.extrasType === "wide") return { label: "Wd", color: "bg-yellow-500/80 text-black" };
   if (b.extrasType === "noball") return { label: "Nb", color: "bg-orange-500 text-white" };
+  if (b.extrasType === "freehit") return { label: "FH", color: "bg-yellow-400 text-black" };
   if (b.extrasType === "bye") return { label: "B", color: "bg-slate-500 text-white" };
   if (b.extrasType === "legbye") return { label: "Lb", color: "bg-slate-500 text-white" };
   const r = b.runsOffBat;
@@ -946,6 +947,10 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
   // No Ball modal
   const [showNoBallModal, setShowNoBallModal] = useState(false);
   const [noBallRuns, setNoBallRuns] = useState(0);
+  const [noBallFreeHit, setNoBallFreeHit] = useState(false);
+
+  // Free Hit — active for the ball immediately after a no-ball with free-hit toggled on
+  const [nextBallIsFreeHit, setNextBallIsFreeHit] = useState(false);
 
   // Submission guard — prevents double-click race conditions
   const isSubmittingRef = useRef(false);
@@ -988,10 +993,15 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
     const prevNonStriker = nonStrikerId;
     const prevOvers = activeInnings.oversCompleted;
 
+    // If next ball is a free hit and this is a normal delivery, mark it as freehit
+    const effectiveExtrasType = (nextBallIsFreeHit && extrasType === "none") ? "freehit" : extrasType;
+    // Clear free hit after every ball (whether it was used or not)
+    if (nextBallIsFreeHit) setNextBallIsFreeHit(false);
+
     try {
       const result = await addBall(activeInnings.id, {
         batsmanId: strikerId, bowlerId,
-        runsOffBat, extras, extrasType,
+        runsOffBat, extras, extrasType: effectiveExtrasType,
         isWicket: false, wicketType: null, fielderId: null,
       });
 
@@ -1287,6 +1297,24 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
         </div>
       )}
 
+      {/* Free Hit indicator banner */}
+      <AnimatePresence>
+        {nextBallIsFreeHit && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex items-center justify-center gap-2 bg-yellow-400/15 border border-yellow-400/50 rounded-xl px-4 py-3"
+          >
+            <span className="text-xl">🏏</span>
+            <div>
+              <p className="text-yellow-400 font-heading text-base uppercase tracking-wide">Free Hit!</p>
+              <p className="text-yellow-400/60 text-[10px]">This ball won't count in the over</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Ball entry buttons */}
       <div className={`bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 ${scoringBlocked ? "opacity-50 pointer-events-none" : ""}`}>
         <p className="text-[10px] text-white/40 uppercase tracking-widest">Ball Entry</p>
@@ -1430,11 +1458,36 @@ function ScoringPanel({ scorecard, matchId, startInnings, addBall, undoBall, com
                   </button>
                 ))}
               </div>
+
+              {/* Free Hit toggle */}
+              <button
+                onClick={() => setNoBallFreeHit(v => !v)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                  noBallFreeHit
+                    ? "bg-yellow-400/15 border-yellow-400/50"
+                    : "bg-white/5 border-white/10"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🏏</span>
+                  <div className="text-left">
+                    <p className={`text-sm font-bold ${noBallFreeHit ? "text-yellow-400" : "text-white/60"}`}>Free Hit</p>
+                    <p className="text-[10px] text-white/30">Next ball won't count in over</p>
+                  </div>
+                </div>
+                <div className={`w-11 h-6 rounded-full transition-all relative ${noBallFreeHit ? "bg-yellow-400" : "bg-white/15"}`}>
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${noBallFreeHit ? "left-5" : "left-0.5"}`} />
+                </div>
+              </button>
+
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 border-white/10 text-white/60"
-                  onClick={() => setShowNoBallModal(false)}>Cancel</Button>
+                  onClick={() => { setShowNoBallModal(false); setNoBallFreeHit(false); }}>Cancel</Button>
                 <Button className="flex-1 bg-orange-500 hover:bg-orange-600" onClick={async () => {
+                  const fh = noBallFreeHit;
                   setShowNoBallModal(false);
+                  setNoBallFreeHit(false);
+                  if (fh) setNextBallIsFreeHit(true);
                   await handleBall(noBallRuns, 0, "noball");
                 }}>
                   NB + {noBallRuns === 0 ? "·" : noBallRuns} runs

@@ -363,7 +363,7 @@ router.post("/innings/:id/balls", async (req, res) => {
     if (!inn) return void res.status(404).json({ error: "Innings not found" });
     if (inn.status === "completed") return void res.status(400).json({ error: "Innings is completed" });
 
-    const isLegal = extrasType !== "wide" && extrasType !== "noball";
+    const isLegal = extrasType !== "wide" && extrasType !== "noball" && extrasType !== "freehit";
 
     // Guard: if 6 legal balls already bowled this over, reject until over is confirmed new
     // (prevents race conditions from rapid clicking sending extra balls in same over)
