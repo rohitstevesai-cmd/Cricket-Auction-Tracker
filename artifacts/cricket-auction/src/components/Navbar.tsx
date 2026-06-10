@@ -145,7 +145,7 @@ export function Navbar() {
     if (code === ADMIN_PIN) {
       sessionStorage.setItem("splAdmin", "1");
       setPinOpen(false);
-      setLocation("/admin");
+      setLocation("/spl-mgmt-x9k2p");
     } else {
       setPinError(true);
       setPin(["", "", "", ""]);

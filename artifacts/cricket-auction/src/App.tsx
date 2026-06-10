@@ -21,7 +21,7 @@ function Router() {
     <Switch>
       <Route path="/" component={PublicDashboard} />
       <Route path="/team/:id" component={TeamDetail} />
-      <Route path="/admin" component={ManagementDashboard} />
+      <Route path="/spl-mgmt-x9k2p" component={ManagementDashboard} />
       <Route path="/match/:id" component={MatchDetail} />
       <Route path="/betting" component={BettingDashboard} />
       <Route path="/betting-admin" component={BettingAdmin} />
